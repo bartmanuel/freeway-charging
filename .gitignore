@@ -1,0 +1,16 @@
+# Old prototype dependencies
+node_modules/
+
+# Vite app
+app/node_modules/
+app/dist/
+app/.env*
+
+# Contains API keys — never commit
+Scratchpad_Statements.txt
+
+# Temporary debug scripts
+debug-haarrijn.py
+
+# macOS
+.DS_Store

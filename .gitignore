@@ -12,6 +12,15 @@ Scratchpad_Statements.txt
 # Temporary debug scripts
 debug-haarrijn.py
 
+# Supabase local dev (contains DB passwords)
+supabase/.branches
+supabase/.temp
+
+# Cloudflare Worker secrets
+worker/.env
+worker/.dev.vars
+worker/node_modules
+
 # macOS
 .DS_Store
 .vercel

@@ -11,11 +11,14 @@ const CORS_HEADERS = {
 };
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // CORS preflight
     if (req.method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS });
     }
+
+    // Make ctx available to handlers that need waitUntil (e.g. background upserts)
+    (globalThis as unknown as { ctx: ExecutionContext }).ctx = ctx;
 
     const url = new URL(req.url);
     const path = url.pathname;

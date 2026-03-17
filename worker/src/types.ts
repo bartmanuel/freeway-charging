@@ -7,6 +7,7 @@ export interface Env {
   GOOGLE_API_KEY: string;
   CHARGETRIP_CLIENT_ID: string;
   CHARGETRIP_APP_ID: string;
+  OCM_API_KEY: string;
 }
 
 export interface Station {

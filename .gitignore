@@ -14,3 +14,4 @@ debug-haarrijn.py
 
 # macOS
 .DS_Store
+.vercel

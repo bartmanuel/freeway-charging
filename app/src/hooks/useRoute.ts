@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { computeRoute } from '../services/routeService';
 
-const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
+const GOOGLE_API_KEY = (import.meta.env.VITE_GOOGLE_API_KEY as string).trim();
 
 export function useRoute(origin: string, destination: string) {
   return useQuery({

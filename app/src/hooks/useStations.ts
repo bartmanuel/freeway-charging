@@ -4,7 +4,7 @@ import { fetchStationsAlongRoute } from '../services/ocmService';
 import { findStationsAlongRoute } from '../services/corridorSearch';
 import { rankAndFilter } from '../services/stationRanker';
 
-const OCM_API_KEY = import.meta.env.VITE_OCM_API_KEY as string;
+const OCM_API_KEY = (import.meta.env.VITE_OCM_API_KEY as string).trim();
 
 export function useStations(routeId: string | undefined, decodedPath: LatLng[], routeLengthMeters: number) {
   return useQuery({

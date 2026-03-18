@@ -13,6 +13,7 @@ export function App() {
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
+  const [activeView, setActiveView] = useState<'list' | 'map'>('list');
 
   const routeQuery = useRoute(origin, destination);
   const stationsQuery = useStations(routeQuery.data?.id, routeQuery.data?.decodedPath ?? [], routeQuery.data?.distanceMeters ?? 0);
@@ -23,13 +24,32 @@ export function App() {
     setDestination(newDestination);
   }
 
+  function handleStationSelect(id: number | null) {
+    setSelectedStationId(id);
+    if (id !== null) setActiveView('map');
+  }
+
   const isLoading = routeQuery.isLoading || stationsQuery.isLoading;
   const error = routeQuery.error || stationsQuery.error;
+
+  const sidebarClass = [
+    styles.sidebar,
+    activeView === 'list' ? styles.activeMobile : styles.thumbnailMobile,
+  ].join(' ');
+
+  const mapAreaClass = [
+    styles.mapArea,
+    activeView === 'map' ? styles.activeMobile : styles.thumbnailMobile,
+  ].join(' ');
 
   return (
     <APIProvider apiKey={GOOGLE_API_KEY}>
     <div className={styles.layout}>
-      <aside className={styles.sidebar}>
+
+      <aside
+        className={sidebarClass}
+        onClick={activeView === 'map' ? () => setActiveView('list') : undefined}
+      >
         <header className={styles.header}>
           <h1 className={styles.title}>Freeway Charge</h1>
           <p className={styles.subtitle}>Charging stations along your route</p>
@@ -61,19 +81,29 @@ export function App() {
           <StationList
             stations={stationsQuery.data}
             selectedId={selectedStationId}
-            onSelect={setSelectedStationId}
+            onSelect={handleStationSelect}
           />
         )}
+
+        {/* Thumbnail label — only visible on mobile when this view is inactive */}
+        <div className={styles.thumbnailLabel}>List</div>
       </aside>
 
-      <main className={styles.mapArea}>
+      <main
+        className={mapAreaClass}
+        onClick={activeView === 'list' ? () => setActiveView('map') : undefined}
+      >
         <MapView
           route={routeQuery.data ?? null}
           stations={stationsQuery.data ?? []}
           selectedStationId={selectedStationId}
           onStationSelect={setSelectedStationId}
         />
+
+        {/* Thumbnail label — only visible on mobile when this view is inactive */}
+        <div className={styles.thumbnailLabel}>Map</div>
       </main>
+
     </div>
     </APIProvider>
   );

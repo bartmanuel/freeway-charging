@@ -70,3 +70,78 @@
   height: 100vh;
   overflow: hidden;
 }
+
+/* ── Thumbnail label (hidden on desktop) ─────────────────────────────────── */
+
+.thumbnailLabel {
+  display: none;
+}
+
+/* ── Mobile view switching ───────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  /* Active view fills the whole screen */
+  .activeMobile {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100dvh !important;
+    z-index: 1;
+    border-right: none;
+  }
+
+  /* Inactive view becomes a floating thumbnail in the bottom-right corner */
+  .thumbnailMobile {
+    position: fixed !important;
+    bottom: 28px !important;
+    right: 16px !important;
+    width: 110px !important;
+    min-width: 0 !important;
+    height: 164px !important;
+    border-radius: 14px;
+    overflow: hidden;
+    z-index: 100;
+    cursor: pointer;
+    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.38);
+    border: 2.5px solid white;
+    /* Disable interaction with content inside the thumbnail */
+    pointer-events: auto;
+  }
+
+  .thumbnailMobile > * {
+    pointer-events: none;
+  }
+
+  /* Re-enable clicks on the label itself */
+  .thumbnailMobile > .thumbnailLabel {
+    pointer-events: none;
+  }
+
+  /* Show the label at the bottom of the thumbnail */
+  .thumbnailLabel {
+    display: flex;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 34px;
+    background: rgba(0, 0, 0, 0.52);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-radius: 0 0 11px 11px;
+  }
+
+  /* Active view's label is hidden — it's only shown in thumbnail mode */
+  .activeMobile > .thumbnailLabel {
+    display: none;
+  }
+}

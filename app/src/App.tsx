@@ -18,7 +18,7 @@ export function App() {
 
   const routeQuery = useRoute(origin, destination);
   const stationsQuery = useStations(routeQuery.data?.id, routeQuery.data?.decodedPath ?? [], routeQuery.data?.distanceMeters ?? 0);
-  const { availabilityMap, pendingIds } = useAvailability(stationsQuery.data ?? []);
+  const { availabilityMap, pendingIds, secondsUntilRefresh } = useAvailability(stationsQuery.data ?? []);
 
   function handleRouteSubmit(newOrigin: string, newDestination: string) {
     setSelectedStationId(null);
@@ -80,13 +80,20 @@ export function App() {
         )}
 
         {stationsQuery.data && (
-          <StationList
-            stations={stationsQuery.data}
-            selectedId={selectedStationId}
-            onSelect={handleStationSelect}
-            availabilityMap={availabilityMap}
-            pendingIds={pendingIds}
-          />
+          <>
+            {secondsUntilRefresh !== null && (
+              <p className={styles.refreshCountdown}>
+                Availability refreshes in {secondsUntilRefresh}s
+              </p>
+            )}
+            <StationList
+              stations={stationsQuery.data}
+              selectedId={selectedStationId}
+              onSelect={handleStationSelect}
+              availabilityMap={availabilityMap}
+              pendingIds={pendingIds}
+            />
+          </>
         )}
 
         {/* Thumbnail label — only visible on mobile when this view is inactive */}

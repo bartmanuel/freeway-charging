@@ -3,10 +3,12 @@ import type { StationOnRoute, StationAvailability, ConnectorAvailability } from 
 
 const WORKER_URL = 'https://freeway-charge-api.bartmanuel.workers.dev';
 const POLL_INTERVAL_MS = 60_000; // 60s — matches TomTom's 3-min cache with headroom
+const POLL_INTERVAL_S = POLL_INTERVAL_MS / 1000;
 
 export interface AvailabilityState {
   availabilityMap: Map<number, StationAvailability>;
   pendingIds: Set<number>;
+  secondsUntilRefresh: number | null; // null when tab hidden or polling not yet started
 }
 
 /**
@@ -17,9 +19,27 @@ export interface AvailabilityState {
 export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
   const [availabilityMap, setAvailabilityMap] = useState<Map<number, StationAvailability>>(new Map());
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
+  const [secondsUntilRefresh, setSecondsUntilRefresh] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stationsRef = useRef(stations);
   stationsRef.current = stations;
+
+  function startCountdown() {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setSecondsUntilRefresh(POLL_INTERVAL_S);
+    countdownRef.current = setInterval(() => {
+      setSecondsUntilRefresh(s => (s !== null && s > 1 ? s - 1 : null));
+    }, 1_000);
+  }
+
+  function stopCountdown() {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+    setSecondsUntilRefresh(null);
+  }
 
   const fetchAll = useCallback(async (isFirstFetch: boolean) => {
     const current = stationsRef.current;
@@ -72,13 +92,17 @@ export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
     if (!stations.length) return;
 
     setAvailabilityMap(new Map());
-    fetchAll(true);
+    fetchAll(true).then(startCountdown);
 
     function scheduleNext() {
       timerRef.current = setTimeout(async () => {
         // Skip poll if tab is hidden — resume on next visibilitychange
-        if (document.visibilityState === 'hidden') return;
+        if (document.visibilityState === 'hidden') {
+          stopCountdown();
+          return;
+        }
         await fetchAll(false);
+        startCountdown();
         scheduleNext();
       }, POLL_INTERVAL_MS);
     }
@@ -89,16 +113,26 @@ export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
       if (document.visibilityState !== 'visible') return;
       // Tab became visible — clear pending timer and re-fetch immediately
       if (timerRef.current) clearTimeout(timerRef.current);
-      fetchAll(false).then(scheduleNext);
+      fetchAll(false).then(() => {
+        startCountdown();
+        scheduleNext();
+      });
+    }
+
+    function onHidden() {
+      if (document.visibilityState === 'hidden') stopCountdown();
     }
 
     document.addEventListener('visibilitychange', onVisible);
+    document.addEventListener('visibilitychange', onHidden);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      stopCountdown();
       document.removeEventListener('visibilitychange', onVisible);
+      document.removeEventListener('visibilitychange', onHidden);
     };
   }, [stations, fetchAll]);
 
-  return { availabilityMap, pendingIds };
+  return { availabilityMap, pendingIds, secondsUntilRefresh };
 }

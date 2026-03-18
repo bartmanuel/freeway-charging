@@ -65,6 +65,14 @@
   padding: 16px;
 }
 
+.refreshCountdown {
+  font-size: 11px;
+  color: #9ca3af;
+  text-align: right;
+  margin: 0;
+  padding: 0 2px;
+}
+
 .mapArea {
   flex: 1;
   height: 100vh;

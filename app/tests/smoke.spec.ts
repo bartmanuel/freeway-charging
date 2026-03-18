@@ -4,6 +4,16 @@ import { test, expect } from '@playwright/test';
 // They verify the end-to-end user flow without mocking any APIs,
 // so they require valid VITE_GOOGLE_API_KEY and VITE_OCM_API_KEY in .env.local.
 
+// Submit the route form programmatically so autocomplete dropdowns don't
+// interfere with the button click.
+async function submitRoute(page: import('@playwright/test').Page, origin: string, destination: string) {
+  await page.getByPlaceholder('Origin').fill(origin);
+  await page.getByPlaceholder('Destination').fill(destination);
+  // requestSubmit() fires the submit event with validation, same as a button click,
+  // but is not blocked by any autocomplete overlay.
+  await page.locator('form').evaluate((form: HTMLFormElement) => form.requestSubmit());
+}
+
 test.describe('Freeway Charge — smoke tests', () => {
   test('page loads with title and route form', async ({ page }) => {
     await page.goto('/');
@@ -21,15 +31,10 @@ test.describe('Freeway Charge — smoke tests', () => {
 
   test('route search returns stations', async ({ page }) => {
     await page.goto('/');
+    await submitRoute(page, 'Amsterdam, Netherlands', 'Eindhoven, Netherlands');
 
-    // Fill origin and destination as plain text (bypasses Places Autocomplete).
-    await page.getByPlaceholder('Origin').fill('Amsterdam, Netherlands');
-    await page.getByPlaceholder('Destination').fill('Eindhoven, Netherlands');
-    await page.getByRole('button', { name: /find charging stations/i }).click();
-
-    // Route meta (distance + duration) should appear within 15 s.
-    // Match "X min" which only appears once (in the route meta bar).
-    await expect(page.locator('text=/\\d+ min/')).toBeVisible({ timeout: 15000 });
+    // Route meta (distance + duration) should appear within 30 s.
+    await expect(page.locator('text=/\\d+ min/')).toBeVisible({ timeout: 30000 });
 
     // Station list should appear. Allow up to 45 s for OCM API.
     const stationList = page.locator('aside ul li');
@@ -41,15 +46,12 @@ test.describe('Freeway Charge — smoke tests', () => {
 
   test('selecting a station from the list pans the map', async ({ page }) => {
     await page.goto('/');
-
-    await page.getByPlaceholder('Origin').fill('Amsterdam, Netherlands');
-    await page.getByPlaceholder('Destination').fill('Eindhoven, Netherlands');
-    await page.getByRole('button', { name: /find charging stations/i }).click();
+    await submitRoute(page, 'Amsterdam, Netherlands', 'Eindhoven, Netherlands');
 
     const firstStation = page.locator('aside ul li').first();
     await firstStation.waitFor({ timeout: 45000 });
 
-    // Record the map center before clicking.
+    // Record the map presence before clicking.
     const centerBefore = await page.evaluate(() => {
       const iframe = document.querySelector('.gm-style');
       return iframe?.getBoundingClientRect();

@@ -5,6 +5,7 @@ import { StationList } from './components/StationList/StationList';
 import { MapView } from './components/MapView/MapView';
 import { useRoute } from './hooks/useRoute';
 import { useStations } from './hooks/useStations';
+import { useAvailability } from './hooks/useAvailability';
 import styles from './App.module.css';
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
@@ -17,6 +18,7 @@ export function App() {
 
   const routeQuery = useRoute(origin, destination);
   const stationsQuery = useStations(routeQuery.data?.id, routeQuery.data?.decodedPath ?? [], routeQuery.data?.distanceMeters ?? 0);
+  const { availabilityMap, pendingIds } = useAvailability(stationsQuery.data ?? []);
 
   function handleRouteSubmit(newOrigin: string, newDestination: string) {
     setSelectedStationId(null);
@@ -82,6 +84,8 @@ export function App() {
             stations={stationsQuery.data}
             selectedId={selectedStationId}
             onSelect={handleStationSelect}
+            availabilityMap={availabilityMap}
+            pendingIds={pendingIds}
           />
         )}
 

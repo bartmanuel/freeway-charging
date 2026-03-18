@@ -27,8 +27,7 @@ export interface ConnectorAvailability {
 }
 
 export interface StationAvailability {
-  fetchedAt: string;                      // ISO timestamp
-  confidence: 'high' | 'medium';
+  fetchedAt: string;
   connectors: ConnectorAvailability[];
 }
 
@@ -37,5 +36,4 @@ export interface StationOnRoute {
   distanceAlongRouteMeters: number;
   detourMeters: number;
   score: number;
-  availability?: StationAvailability;
 }

@@ -1,5 +1,0 @@
-{
-  "name": "freeway-charge",
-  "private": true,
-  "workspaces": ["app", "worker"]
-}

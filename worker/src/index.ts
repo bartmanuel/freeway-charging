@@ -29,9 +29,8 @@ export default {
       res = await handleRoute(req, env);
     } else if (path === '/api/stations/corridor' && req.method === 'POST') {
       res = await handleCorridor(req, env);
-    } else if (path.startsWith('/api/stations/') && path.endsWith('/availability') && req.method === 'GET') {
-      const stationId = path.split('/')[3];
-      res = await handleAvailability(req, env, stationId);
+    } else if (path === '/api/stations/availability' && req.method === 'POST') {
+      res = await handleAvailability(req, env);
     } else if (path === '/api/health' && req.method === 'GET') {
       const deep = url.searchParams.get('deep') === 'true';
       res = await handleHealth(req, env, deep);

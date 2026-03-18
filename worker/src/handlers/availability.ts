@@ -1,48 +1,54 @@
 import { Env } from '../types';
 import { redisGet, redisSet } from '../redis';
-import { fetchStationAvailability } from '../chargetrip';
-import { insertAvailabilityReadings } from '../supabase';
+import { fetchStationAvailability, StationInput, ConnectorAvailability } from '../tomtom';
 
-const AVAILABILITY_TTL = 30; // seconds
+// Matches TomTom's own refresh cadence — no benefit polling more frequently
+const AVAILABILITY_TTL = 180; // 3 minutes
 
-export async function handleAvailability(
-  _req: Request,
-  env: Env,
-  stationId: string,
-): Promise<Response> {
-  if (!stationId) return new Response('Missing station id', { status: 400 });
-
-  const key = `availability:${stationId}`;
-  const cached = await redisGet(env, key);
-  if (cached) {
-    return new Response(cached, {
-      headers: { 'Content-Type': 'application/json', 'X-Cache': 'HIT' },
-    });
+export async function handleAvailability(req: Request, env: Env): Promise<Response> {
+  let stations: StationInput[];
+  try {
+    stations = await req.json() as StationInput[];
+  } catch {
+    return new Response('Invalid JSON', { status: 400 });
   }
 
-  const chargers = await fetchStationAvailability(env, stationId);
-  if (!chargers) {
-    return new Response(JSON.stringify({ stationId, chargers: null }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+  if (!Array.isArray(stations) || stations.length === 0) {
+    return new Response('Expected a non-empty array of stations', { status: 400 });
   }
 
-  const result = {
-    stationId,
-    sampledAt: new Date().toISOString(),
-    source: 'chargetrip',
-    chargers,
-  };
+  // Fetch availability for all stations in parallel
+  const results = await Promise.allSettled(
+    stations.map(async (station) => {
+      const cacheKey = `availability:${station.id}`;
 
-  const payload = JSON.stringify(result);
-  await Promise.all([
-    redisSet(env, key, payload, AVAILABILITY_TTL),
-    insertAvailabilityReadings(env, [
-      { station_id: stationId, source: 'chargetrip', chargers },
-    ]),
-  ]);
+      // Redis cache hit — return early
+      const cached = await redisGet(env, cacheKey);
+      if (cached) {
+        return { id: station.id, connectors: JSON.parse(cached) as ConnectorAvailability[], fromCache: true };
+      }
 
-  return new Response(payload, {
-    headers: { 'Content-Type': 'application/json', 'X-Cache': 'MISS' },
+      const connectors = await fetchStationAvailability(env, station);
+
+      if (connectors && connectors.length > 0) {
+        // Cache in background — don't block the response
+        redisSet(env, cacheKey, JSON.stringify(connectors), AVAILABILITY_TTL).catch(() => {/* best-effort */});
+      }
+
+      return { id: station.id, connectors: connectors ?? null };
+    }),
+  );
+
+  // Build response map: { [ocmId]: ConnectorAvailability[] | null }
+  const output: Record<string, ConnectorAvailability[] | null> = {};
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      output[result.value.id] = result.value.connectors;
+    }
+    // Rejected promises are silently omitted — station simply won't appear in response
+  }
+
+  return new Response(JSON.stringify(output), {
+    headers: { 'Content-Type': 'application/json' },
   });
 }

@@ -5,8 +5,7 @@ export interface Env {
   UPSTASH_REDIS_REST_URL: string;
   UPSTASH_REDIS_REST_TOKEN: string;
   GOOGLE_API_KEY: string;
-  CHARGETRIP_CLIENT_ID: string;
-  CHARGETRIP_APP_ID: string;
+  TOMTOM_API_KEY: string;
   OCM_API_KEY: string;
 }
 
@@ -23,19 +22,3 @@ export interface Station {
   country: string | null;
 }
 
-export interface ChargerStatus {
-  connectorType: string;
-  powerKw: number;
-  total: number;
-  free: number;
-  busy: number;
-  unknown: number;
-  error: number;
-}
-
-export interface StationAvailability {
-  stationId: string;
-  sampledAt: string;
-  source: string;
-  chargers: ChargerStatus[];
-}

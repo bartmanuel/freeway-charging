@@ -61,15 +61,3 @@ export async function upsertStations(env: Env, stations: Station[]): Promise<voi
   }
 }
 
-/** Write a batch of availability readings. */
-export async function insertAvailabilityReadings(
-  env: Env,
-  rows: { station_id: string; source: string; chargers: unknown }[],
-): Promise<void> {
-  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/station_availability`, {
-    method: 'POST',
-    headers: { ...headers(env), Prefer: 'return=minimal' },
-    body: JSON.stringify(rows),
-  });
-  if (!res.ok) throw new Error(`Supabase insert availability failed: ${res.status}`);
-}

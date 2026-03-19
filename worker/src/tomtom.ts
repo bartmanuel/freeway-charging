@@ -232,8 +232,9 @@ export async function fetchStationAvailability(
 
     tomtomAvailId = availId;
 
-    // Store mapping in background (don't block the response)
-    storeTomTomId(env, station.id, availId, bestConfidence).catch(() => {/* best-effort */});
+    // Store mapping — use waitUntil so the write survives past the response being sent
+    const ctx = (globalThis as unknown as { ctx: ExecutionContext }).ctx;
+    ctx.waitUntil(storeTomTomId(env, station.id, availId, bestConfidence).catch(() => {}));
   }
 
   // 3 — Fetch availability

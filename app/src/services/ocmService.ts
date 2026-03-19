@@ -1,37 +1,64 @@
 import type { Station } from '../types/station';
 
-const WORKER_URL = 'https://freeway-charge-api.bartmanuel.workers.dev';
+const BASE_URL = 'https://api.openchargemap.io/v3/poi/';
 
-// Worker Station type uses snake_case (Supabase column names)
-interface WorkerStation {
-  id: string;
-  name: string;
-  operator: string | null;
-  lat: number;
-  lng: number;
-  max_power_kw: number | null;
-  total_stalls: number | null;
-  connectors: { type: string; powerKw: number }[] | null;
-  address: string | null;
-  country: string | null;
+interface OCMConnection {
+  PowerKW?: number | null;
+  ConnectionType?: { Title?: string };
 }
 
-function mapWorkerStation(s: WorkerStation): Station {
+interface OCMStation {
+  ID: number;
+  AddressInfo?: {
+    Title?: string;
+    Latitude?: number;
+    Longitude?: number;
+    AddressLine1?: string;
+    Country?: { ISOCode?: string };
+  };
+  OperatorInfo?: { Title?: string } | null;
+  NumberOfPoints?: number | null;
+  Connections?: OCMConnection[];
+}
+
+// OCM occasionally returns map-tile or placeholder names instead of real station names.
+const INVALID_NAMES = new Set(['terrain', 'labels', 'satellite', 'roadmap', 'hybrid']);
+
+function mapOCMStation(raw: OCMStation): Station | null {
+  const addr = raw.AddressInfo;
+  if (!addr?.Latitude || !addr?.Longitude) return null;
+
+  const name = (addr.Title ?? '').trim();
+  if (name.length < 3 || INVALID_NAMES.has(name.toLowerCase())) return null;
+
+  const connections = (raw.Connections ?? []).map((c) => ({
+    type: c.ConnectionType?.Title ?? 'Unknown',
+    powerKw: c.PowerKW ?? null,
+  }));
+
+  const maxPowerKw = Math.max(
+    0,
+    ...connections.map((c) => c.powerKw ?? 0).filter((kw) => kw < 500), // cap bad data
+  );
+
   return {
-    id: Number(s.id),
-    name: s.name,
-    operator: s.operator,
-    lat: s.lat,
-    lng: s.lng,
-    maxPowerKw: s.max_power_kw ?? 0,
-    totalStalls: s.total_stalls,
-    connectors: s.connectors ?? [],
-    address: s.address ?? '',
-    country: s.country ?? '',
+    id: raw.ID,
+    name: addr.Title ?? 'Unknown',
+    operator: raw.OperatorInfo?.Title ?? null,
+    lat: addr.Latitude,
+    lng: addr.Longitude,
+    maxPowerKw,
+    totalStalls: raw.NumberOfPoints ?? null,
+    connectors: connections,
+    address: addr.AddressLine1 ?? '',
+    country: addr.Country?.ISOCode ?? '',
   };
 }
 
-// Max points to send in the corridor polyline parameter.
+// Max points to send in the OCM polyline query.
+// Google Routes returns 300–600 points for long routes; URL-encoding that many
+// pushes the URL over server limits (414). 100 points ≈ 1 pt/2 km for a 200 km
+// route — more than sufficient to define a 3 km corridor accurately.
 const MAX_POLYLINE_POINTS = 100;
 
 // Reduces a path to at most maxPoints by uniform subsampling, keeping first and last.
@@ -71,33 +98,63 @@ function encodePolyline(points: { lat: number; lng: number }[]): string {
   return output;
 }
 
-// Fetches stations along a route via the Worker's corridor endpoint.
-// The Worker serves from its Supabase cache and falls back to OCM on cache miss.
-// The apiKey parameter is kept for backward compatibility but is no longer used
-// (the Worker holds its own OCM key server-side).
+// Fetches stations along a route using OCM's polyline corridor search.
+// Falls back to multiple radius queries if the polyline request fails or returns nothing.
 export async function fetchStationsAlongRoute(
   decodedPath: { lat: number; lng: number }[],
-  _apiKey: string,
+  apiKey: string,
+  bufferKm = 3,
 ): Promise<Station[]> {
-  const lats = decodedPath.map(p => p.lat);
-  const lngs = decodedPath.map(p => p.lng);
-  const bbox = {
-    minLat: Math.min(...lats),
-    maxLat: Math.max(...lats),
-    minLng: Math.min(...lngs),
-    maxLng: Math.max(...lngs),
-  };
-
-  const encodedPolyline = encodePolyline(subsamplePath(decodedPath, MAX_POLYLINE_POINTS));
-
-  const res = await fetch(`${WORKER_URL}/api/stations/corridor`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...bbox, encodedPolyline }),
+  const params = new URLSearchParams({
+    levelid: '3',
+    minpowerkilowatts: '50',
+    maxresults: '500',
+    compact: 'false',
+    verbose: 'false',
+    key: apiKey,
   });
 
-  if (!res.ok) throw new Error(`Corridor endpoint error: ${res.status}`);
+  // Strategy A: polyline corridor query
+  try {
+    const polyline = encodePolyline(subsamplePath(decodedPath, MAX_POLYLINE_POINTS));
+    const url = `${BASE_URL}?${params}&polyline=${encodeURIComponent(polyline)}&distance=${bufferKm}&distanceunit=KM`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const data: OCMStation[] = await res.json();
+      if (data.length > 0) {
+        return data.map(mapOCMStation).filter((s): s is Station => s !== null);
+      }
+    }
+  } catch {
+    // fall through to Strategy B
+  }
 
-  const data = await res.json() as WorkerStation[];
-  return data.map(mapWorkerStation);
+  // Strategy B: radius queries at intervals along the route
+  // Subsample to one point roughly every 20 km
+  const totalPoints = decodedPath.length;
+  const step = Math.max(1, Math.floor(totalPoints / 7));
+  const waypoints = decodedPath.filter((_, i) => i % step === 0 || i === totalPoints - 1);
+
+  const seen = new Set<number>();
+  const allStations: Station[] = [];
+
+  for (const point of waypoints) {
+    await new Promise((r) => setTimeout(r, 200)); // rate limit courtesy
+    try {
+      const url = `${BASE_URL}?${params}&latitude=${point.lat}&longitude=${point.lng}&distance=15&distanceunit=KM`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const data: OCMStation[] = await res.json();
+      for (const raw of data) {
+        if (seen.has(raw.ID)) continue;
+        seen.add(raw.ID);
+        const station = mapOCMStation(raw);
+        if (station) allStations.push(station);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return allStations;
 }

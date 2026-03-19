@@ -1,4 +1,4 @@
-import type { StationOnRoute, StationAvailability, ConnectorAvailability } from '../../types/station';
+import type { StationOnRoute, StationAvailability, ConnectorAvailability, HistoryPoint } from '../../types/station';
 import type { RouteProjection } from '../../utils/routeProjection';
 import styles from './StationList.module.css';
 
@@ -41,6 +41,26 @@ function availabilityClass(connector: ConnectorAvailability): string {
   if (ratio > 0.5) return styles.availGood;
   if (ratio > 0) return styles.availPartial;
   return styles.availFull;
+}
+
+function SparkBar({ history }: { history: HistoryPoint[] }) {
+  if (!history.length) return null;
+  // history is newest-first; reverse so oldest is on the left
+  const pts = [...history].reverse();
+  const maxTotal = Math.max(...pts.map(p => p.total), 1);
+  return (
+    <div className={styles.sparkBar} title="Availability history (oldest → newest)">
+      {pts.map((p, i) => {
+        const heightPct = (p.total / maxTotal) * 100;
+        const availPct = p.total > 0 ? (p.avail / p.total) * 100 : 0;
+        return (
+          <div key={i} className={styles.sparkCol} style={{ height: `${heightPct}%` }}>
+            <div className={styles.sparkFill} style={{ height: `${availPct}%` }} />
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function formatRemainingDistance(stationAlongM: number, userAlongM: number): string {
@@ -88,19 +108,24 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
             </div>
             {(availability || isPending) && (
               <div className={styles.availability}>
-                {isPending && !availability ? (
-                  <span className={`${styles.availBadge} ${styles.availPending}`}>
-                    CCS2 &nbsp;•••
-                  </span>
-                ) : availability?.connectors.map(c => (
-                  <span
-                    key={c.type}
-                    className={`${styles.availBadge} ${availabilityClass(c)}`}
-                    title={`${c.available} of ${c.total} available`}
-                  >
-                    {c.available}/{c.total} {c.typeLabel}
-                  </span>
-                ))}
+                <div className={styles.availRow}>
+                  {isPending && !availability ? (
+                    <span className={`${styles.availBadge} ${styles.availPending}`}>
+                      CCS2 &nbsp;•••
+                    </span>
+                  ) : availability?.connectors.map(c => (
+                    <span
+                      key={c.type}
+                      className={`${styles.availBadge} ${availabilityClass(c)}`}
+                      title={`${c.available} of ${c.total} available`}
+                    >
+                      {c.available}/{c.total} {c.typeLabel}
+                    </span>
+                  ))}
+                </div>
+                {availability?.history && availability.history.length > 1 && (
+                  <SparkBar history={availability.history} />
+                )}
               </div>
             )}
             <div className={styles.distance}>

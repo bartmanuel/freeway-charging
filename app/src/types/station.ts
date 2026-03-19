@@ -26,9 +26,16 @@ export interface ConnectorAvailability {
   unknown: number;
 }
 
+export interface HistoryPoint {
+  ts: string;    // ISO timestamp
+  avail: number;
+  total: number;
+}
+
 export interface StationAvailability {
   fetchedAt: string;
   connectors: ConnectorAvailability[];
+  history: HistoryPoint[];
 }
 
 export interface StationOnRoute {

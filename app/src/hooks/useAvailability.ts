@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { StationOnRoute, StationAvailability, ConnectorAvailability } from '../types/station';
+import type { StationOnRoute, StationAvailability, HistoryPoint, ConnectorAvailability } from '../types/station';
 
 const WORKER_URL = 'https://freeway-charge-api.bartmanuel.workers.dev';
 const POLL_INTERVAL_MS = 60_000; // 60s — matches TomTom's 3-min cache with headroom
@@ -68,16 +68,25 @@ export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
 
       if (!res.ok) return;
 
-      const data = await res.json() as Record<string, ConnectorAvailability[] | null>;
+      const data = await res.json() as Record<string, { connectors: ConnectorAvailability[] | null; history: HistoryPoint[] }>;
 
-      setAvailabilityMap(() => {
-        const next = new Map<number, StationAvailability>();
-        for (const [idStr, connectors] of Object.entries(data)) {
-          if (!connectors?.length) continue;
-          next.set(Number(idStr), {
-            fetchedAt: new Date().toISOString(),
-            connectors,
-          });
+      setAvailabilityMap(prev => {
+        const next = new Map<number, StationAvailability>(prev);
+        for (const [idStr, { connectors, history }] of Object.entries(data)) {
+          const id = Number(idStr);
+          if (connectors?.length) {
+            next.set(id, {
+              fetchedAt: new Date().toISOString(),
+              connectors,
+              history: history ?? [],
+            });
+          } else if (prev.has(id)) {
+            // Keep stale availability but update history if newer data arrived
+            const existing = prev.get(id)!;
+            if (history?.length) {
+              next.set(id, { ...existing, history });
+            }
+          }
         }
         return next;
       });

@@ -33,6 +33,70 @@ export async function getStationsInBbox(
   return res.json() as Promise<Station[]>;
 }
 
+export interface HistoryPoint {
+  ts: string;    // ISO timestamp (sampled_at)
+  avail: number;
+  total: number;
+}
+
+/**
+ * Insert a single CCS2 availability reading for a station.
+ * Silently swallows FK violations (station not yet in stations table on first poll).
+ */
+export async function insertAvailabilityReading(
+  env: Env,
+  stationId: string,
+  avail: number,
+  total: number,
+): Promise<void> {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/station_availability`, {
+    method: 'POST',
+    headers: { ...headers(env), Prefer: 'return=minimal' },
+    body: JSON.stringify({ station_id: stationId, source: 'tomtom', chargers: { avail, total } }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    // 23503 = FK violation (station not yet persisted) — safe to ignore
+    if (!err.includes('23503')) throw new Error(`Supabase availability insert failed (${res.status}): ${err}`);
+  }
+}
+
+/**
+ * Fetch the most recent `perStation` readings for each of the given station IDs.
+ * Returns a map keyed by station ID, values ordered newest-first.
+ */
+export async function getRecentHistory(
+  env: Env,
+  stationIds: string[],
+  perStation = 12,
+): Promise<Map<string, HistoryPoint[]>> {
+  if (!stationIds.length) return new Map();
+
+  const params = new URLSearchParams([
+    ['select', 'station_id,sampled_at,chargers'],
+    ['station_id', `in.(${stationIds.join(',')})`],
+    ['order', 'sampled_at.desc'],
+    ['limit', String(perStation * stationIds.length)],
+  ]);
+
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/station_availability?${params}`, {
+    headers: headers(env),
+  });
+  if (!res.ok) throw new Error(`Supabase history query failed: ${res.status}`);
+
+  const rows = await res.json() as { station_id: string; sampled_at: string; chargers: { avail: number; total: number } }[];
+
+  const out = new Map<string, HistoryPoint[]>();
+  for (const row of rows) {
+    const pts = out.get(row.station_id) ?? [];
+    if (pts.length < perStation) {
+      pts.push({ ts: row.sampled_at, avail: row.chargers.avail, total: row.chargers.total });
+      out.set(row.station_id, pts);
+    }
+  }
+  return out;
+}
+
 /** Upsert a batch of stations (merge on id). Duplicates within the batch are deduped first. */
 export async function upsertStations(env: Env, stations: Station[]): Promise<void> {
   if (!stations.length) return;

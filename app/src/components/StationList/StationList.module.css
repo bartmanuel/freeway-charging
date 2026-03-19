@@ -107,9 +107,42 @@
 
 .availability {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 4px;
   margin-bottom: 6px;
+}
+
+.availRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Spark barchart — shows last N availability readings */
+.sparkBar {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 20px;
+  width: 100%;
+}
+
+.sparkCol {
+  flex: 1;
+  background: #e5e7eb;
+  border-radius: 2px 2px 0 0;
+  position: relative;
+  min-height: 3px;
+  overflow: hidden;
+}
+
+.sparkFill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #2563eb;
+  border-radius: 2px 2px 0 0;
 }
 
 .availBadge {

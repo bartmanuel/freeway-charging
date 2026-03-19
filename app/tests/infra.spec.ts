@@ -33,4 +33,48 @@ test.describe('Infrastructure health', () => {
     const body = await res.json();
     expect(Array.isArray(body)).toBe(true);
   });
+
+  test('route endpoint returns a valid polyline (Google Routes API key)', async ({ request }) => {
+    const res = await request.post(`${WORKER_URL}/api/route`, {
+      data: { origin: 'Amsterdam, Netherlands', destination: 'Eindhoven, Netherlands' },
+    });
+    expect(res.ok(), `Worker returned ${res.status()}`).toBe(true);
+    const body = await res.json();
+    const route = body.routes?.[0];
+    expect(route, 'routes[0] missing').toBeTruthy();
+    expect(typeof route.distanceMeters).toBe('number');
+    expect(route.distanceMeters).toBeGreaterThan(50_000);
+    expect(typeof route.polyline?.encodedPolyline).toBe('string');
+    expect(route.polyline.encodedPolyline.length).toBeGreaterThan(100);
+  });
+
+  test('availability endpoint returns a result map (TomTom API key)', async ({ request }) => {
+    // Single well-known IONITY station near Utrecht (OCM ID 45497) as a minimal payload
+    const res = await request.post(`${WORKER_URL}/api/stations/availability`, {
+      data: [
+        {
+          id: '45497',
+          lat: 52.0843,
+          lng: 5.0571,
+          name: 'IONITY De Kroon',
+          operator: 'IONITY',
+          connectors: [{ type: 'CCS (Type 2)', powerKw: 350 }],
+        },
+      ],
+    });
+    expect(res.ok(), `Worker returned ${res.status()}`).toBe(true);
+    const body = await res.json();
+    // Response must be an object keyed by station id
+    expect(typeof body).toBe('object');
+    expect('45497' in body).toBe(true);
+    // Value is either null (no TomTom match) or an array of connector availability objects
+    const val = body['45497'];
+    if (val !== null) {
+      expect(Array.isArray(val)).toBe(true);
+      if (val.length > 0) {
+        expect(typeof val[0].total).toBe('number');
+        expect(typeof val[0].available).toBe('number');
+      }
+    }
+  });
 });

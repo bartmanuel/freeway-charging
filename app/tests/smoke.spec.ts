@@ -35,6 +35,7 @@ test.describe('Freeway Charge — smoke tests', () => {
 
     // Route meta (distance + duration) should appear within 30 s.
     await expect(page.locator('text=/\\d+ min/')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('text=/\\d+ km/')).toBeVisible({ timeout: 5000 });
 
     // Station list should appear. Allow up to 45 s for OCM API.
     const stationList = page.locator('aside ul li');
@@ -42,6 +43,29 @@ test.describe('Freeway Charge — smoke tests', () => {
 
     const count = await stationList.count();
     expect(count).toBeGreaterThan(0);
+
+    // Route meta should show station count
+    await expect(page.locator(`text=/\\d+ stations/`)).toBeVisible({ timeout: 5000 });
+  });
+
+  test('availability badges appear after station list loads', async ({ page }) => {
+    await page.goto('/');
+    await submitRoute(page, 'Amsterdam, Netherlands', 'Eindhoven, Netherlands');
+
+    // Wait for stations to load first
+    await page.locator('aside ul li').first().waitFor({ timeout: 45000 });
+
+    // Availability badges (pending or resolved) should appear within 30 s of stations loading.
+    // The Worker polls TomTom; some stations may return null but at least the pending state fires.
+    const badge = page.locator('[class*="availBadge"]').first();
+    await expect(badge).toBeVisible({ timeout: 30000 });
+  });
+
+  test('invalid route shows an error message', async ({ page }) => {
+    await page.goto('/');
+    await submitRoute(page, 'xyzzy not a place', 'zzzyyx also not a place');
+    // Should show an error within 15 s — not crash or hang
+    await expect(page.locator('[class*="error"]')).toBeVisible({ timeout: 15000 });
   });
 
   test('selecting a station from the list pans the map', async ({ page }) => {

@@ -24,7 +24,14 @@ async function fetchOne(env: Env, station: StationInput): Promise<StationResult>
 
   const cached = await redisGet(env, cacheKey);
   if (cached) {
-    return { id: station.id, connectors: JSON.parse(cached) as ConnectorAvailability[], fromCache: true };
+    const connectors = JSON.parse(cached) as ConnectorAvailability[];
+    // Save the cached reading to Supabase on every poll so history accumulates
+    // at the poll interval (60s) rather than only when the 3-min Redis cache expires.
+    if (connectors.length > 0) {
+      const ccs2 = connectors[0];
+      ctx.waitUntil(insertAvailabilityReading(env, station.id, ccs2.available, ccs2.total).catch(() => {}));
+    }
+    return { id: station.id, connectors, fromCache: true };
   }
 
   const connectors = await fetchStationAvailability(env, station);
@@ -81,7 +88,9 @@ export async function handleAvailability(req: Request, env: Env): Promise<Respon
   for (const result of fulfilled) {
     const stored = historyMap.get(result.id) ?? [];
     let history = stored;
-    if (!result.fromCache && result.connectors?.length) {
+    // Always prepend the current reading so the sparkbar includes the live value
+    // and shows up as soon as we have ≥1 stored reading from a previous poll.
+    if (result.connectors?.length) {
       const ccs2 = result.connectors[0];
       const currentPoint: HistoryPoint = { ts: now, avail: ccs2.available, total: ccs2.total };
       history = [currentPoint, ...stored];

@@ -56,9 +56,6 @@ export async function handleRoute(req: Request, env: Env): Promise<Response> {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': env.GOOGLE_API_KEY,
         'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline',
-        // Required: the API key has HTTP-referrer restrictions for the production domain.
-        // The Worker acts as a server-side proxy for that origin, so we identify as it.
-        'Referer': 'https://freeway-charging.vercel.app',
       },
       body: JSON.stringify({
         origin: toWaypoint(origin),

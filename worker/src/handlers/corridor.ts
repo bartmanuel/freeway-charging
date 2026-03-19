@@ -35,6 +35,14 @@ export async function handleCorridor(req: Request, env: Env): Promise<Response> 
   const cached = await getStationsInBbox(env, minLat, maxLat, minLng, maxLng, minPowerKw);
 
   if (cached.length >= MIN_CACHE_HIT) {
+    // Return cached result immediately, but refresh from OCM in the background
+    // (stale-while-revalidate) so the next request sees up-to-date station data.
+    const ctx = (globalThis as unknown as { ctx?: ExecutionContext }).ctx;
+    const refresh = fetchStationsFromOCM(env, bbox, encodedPolyline)
+      .then(stations => stations.length > 0 ? upsertStations(env, stations) : Promise.resolve())
+      .catch(() => {}); // silent — OCM may be temporarily down
+    if (ctx) ctx.waitUntil(refresh);
+
     return new Response(JSON.stringify(cached), {
       headers: { 'Content-Type': 'application/json', 'X-Source': 'cache' },
     });

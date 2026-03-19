@@ -132,8 +132,9 @@
   background: #e5e7eb;
   border-radius: 2px 2px 0 0;
   position: relative;
-  min-height: 3px;
   overflow: hidden;
+  /* height is set as a px value via inline style — avoids % resolution issues
+     with absolutely-positioned children inside overflow:auto scroll chains */
 }
 
 .sparkFill {
@@ -143,6 +144,7 @@
   right: 0;
   background: #2563eb;
   border-radius: 2px 2px 0 0;
+  /* height is set as a px value via inline style */
 }
 
 .availBadge {

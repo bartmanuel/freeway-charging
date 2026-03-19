@@ -43,6 +43,8 @@ function availabilityClass(connector: ConnectorAvailability): string {
   return styles.availFull;
 }
 
+const SPARK_MAX_PX = 20; // matches .sparkBar height in CSS
+
 function SparkBar({ history }: { history: HistoryPoint[] }) {
   if (!history.length) return null;
   // history is newest-first; reverse so oldest is on the left
@@ -51,11 +53,11 @@ function SparkBar({ history }: { history: HistoryPoint[] }) {
   return (
     <div className={styles.sparkBar} title="Availability history (oldest → newest)">
       {pts.map((p, i) => {
-        const heightPct = (p.total / maxTotal) * 100;
-        const availPct = p.total > 0 ? (p.avail / p.total) * 100 : 0;
+        const colPx = Math.max(Math.round((p.total / maxTotal) * SPARK_MAX_PX), 3);
+        const fillPx = p.total > 0 ? Math.round((p.avail / p.total) * colPx) : 0;
         return (
-          <div key={i} className={styles.sparkCol} style={{ height: `${heightPct}%` }}>
-            <div className={styles.sparkFill} style={{ height: `${availPct}%` }} />
+          <div key={i} className={styles.sparkCol} style={{ height: colPx }}>
+            <div className={styles.sparkFill} style={{ height: fillPx }} />
           </div>
         );
       })}

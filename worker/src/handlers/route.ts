@@ -12,6 +12,21 @@ function cacheKey(origin: string, destination: string): string {
   return `route:${origin.toLowerCase()}:${destination.toLowerCase()}`;
 }
 
+function parseLatLng(value: string): { latitude: number; longitude: number } | null {
+  const parts = value.split(',');
+  if (parts.length !== 2) return null;
+  const latitude = parseFloat(parts[0]);
+  const longitude = parseFloat(parts[1]);
+  if (isNaN(latitude) || isNaN(longitude)) return null;
+  return { latitude, longitude };
+}
+
+function toWaypoint(value: string): Record<string, unknown> {
+  const latLng = parseLatLng(value);
+  if (latLng) return { location: { latLng } };
+  return { address: value };
+}
+
 export async function handleRoute(req: Request, env: Env): Promise<Response> {
   let body: RouteRequest;
   try {
@@ -41,10 +56,13 @@ export async function handleRoute(req: Request, env: Env): Promise<Response> {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': env.GOOGLE_API_KEY,
         'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline',
+        // Required: the API key has HTTP-referrer restrictions for the production domain.
+        // The Worker acts as a server-side proxy for that origin, so we identify as it.
+        'Referer': 'https://freeway-charging.vercel.app',
       },
       body: JSON.stringify({
-        origin: { address: origin },
-        destination: { address: destination },
+        origin: toWaypoint(origin),
+        destination: toWaypoint(destination),
         travelMode: 'DRIVE',
         polylineQuality: 'HIGH_QUALITY',
         polylineEncoding: 'ENCODED_POLYLINE',

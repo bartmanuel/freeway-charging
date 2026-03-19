@@ -1,6 +1,6 @@
 import type { LatLng, Route } from '../types/route';
 
-const ROUTES_API_URL = 'https://routes.googleapis.com/directions/v2:computeRoutes';
+const WORKER_URL = 'https://freeway-charge-api.bartmanuel.workers.dev';
 
 // Decodes a Google encoded polyline string into an array of LatLng points.
 export function decodePolyline(encoded: string): LatLng[] {
@@ -34,44 +34,11 @@ export function decodePolyline(encoded: string): LatLng[] {
   return points;
 }
 
-// "lat,lng" strings (from GPS recalculation) must be sent as latLng objects,
-// not as address strings — the Routes API rejects them with 400 otherwise.
-function parseLatLng(value: string): { latitude: number; longitude: number } | null {
-  const parts = value.split(',');
-  if (parts.length !== 2) return null;
-  const latitude = parseFloat(parts[0]);
-  const longitude = parseFloat(parts[1]);
-  if (isNaN(latitude) || isNaN(longitude)) return null;
-  return { latitude, longitude };
-}
-
-function toWaypoint(value: string): Record<string, unknown> {
-  const latLng = parseLatLng(value);
-  if (latLng) return { location: { latLng } };
-  return { address: value };
-}
-
-export async function computeRoute(
-  origin: string,
-  destination: string,
-  apiKey: string,
-): Promise<Route> {
-  const response = await fetch(ROUTES_API_URL, {
+export async function computeRoute(origin: string, destination: string): Promise<Route> {
+  const response = await fetch(`${WORKER_URL}/api/route`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask':
-        'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline',
-    },
-    body: JSON.stringify({
-      origin: toWaypoint(origin),
-      destination: toWaypoint(destination),
-      travelMode: 'DRIVE',
-      routingPreference: 'TRAFFIC_AWARE',
-      polylineQuality: 'HIGH_QUALITY',
-      polylineEncoding: 'ENCODED_POLYLINE',
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ origin, destination }),
   });
 
   if (!response.ok) {

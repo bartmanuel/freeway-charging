@@ -1,4 +1,5 @@
 import type { StationOnRoute, StationAvailability, ConnectorAvailability } from '../../types/station';
+import type { RouteProjection } from '../../utils/routeProjection';
 import styles from './StationList.module.css';
 
 interface Props {
@@ -7,6 +8,7 @@ interface Props {
   onSelect: (id: number) => void;
   availabilityMap?: Map<number, StationAvailability>;
   pendingIds?: Set<number>;
+  userProjection?: RouteProjection | null;
 }
 
 function formatDistance(meters: number): string {
@@ -41,7 +43,14 @@ function availabilityClass(connector: ConnectorAvailability): string {
   return styles.availFull;
 }
 
-export function StationList({ stations, selectedId, onSelect, availabilityMap, pendingIds }: Props) {
+function formatRemainingDistance(stationAlongM: number, userAlongM: number): string {
+  const remainingKm = (stationAlongM - userAlongM) / 1000;
+  if (remainingKm < -0.5) return 'Passed';
+  if (remainingKm < 1) return `${Math.round(remainingKm * 1000)} m ahead`;
+  return `${remainingKm.toFixed(1)} km ahead`;
+}
+
+export function StationList({ stations, selectedId, onSelect, availabilityMap, pendingIds, userProjection }: Props) {
   if (stations.length === 0) {
     return <p className={styles.empty}>No charging stations found along this route.</p>;
   }
@@ -51,10 +60,18 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
       {stations.map(({ station, distanceAlongRouteMeters, detourMeters }) => {
         const availability = availabilityMap?.get(station.id);
         const isPending = pendingIds?.has(station.id) ?? false;
+        const remainingM = userProjection
+          ? distanceAlongRouteMeters - userProjection.distanceAlongRouteMeters
+          : null;
+        const isPassed = remainingM !== null && remainingM < -500;
         return (
           <li
             key={station.id}
-            className={`${styles.card} ${selectedId === station.id ? styles.selected : ''}`}
+            className={[
+              styles.card,
+              selectedId === station.id ? styles.selected : '',
+              isPassed ? styles.passed : '',
+            ].join(' ')}
             onClick={() => onSelect(station.id)}
           >
             <div className={styles.header}>
@@ -87,7 +104,13 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
               </div>
             )}
             <div className={styles.distance}>
-              <span>{formatDistance(distanceAlongRouteMeters)} along route</span>
+              {remainingM !== null ? (
+                <span className={isPassed ? styles.passed_label : styles.ahead_label}>
+                  {formatRemainingDistance(distanceAlongRouteMeters, userProjection!.distanceAlongRouteMeters)}
+                </span>
+              ) : (
+                <span>{formatDistance(distanceAlongRouteMeters)} along route</span>
+              )}
               <span className={styles.detour}>{formatDetour(detourMeters)}</span>
             </div>
           </li>

@@ -91,6 +91,20 @@
   color: #6b7280;
 }
 
+.passed {
+  opacity: 0.45;
+}
+
+.passed_label {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.ahead_label {
+  color: #2563eb;
+  font-weight: 600;
+}
+
 .availability {
   display: flex;
   flex-wrap: wrap;

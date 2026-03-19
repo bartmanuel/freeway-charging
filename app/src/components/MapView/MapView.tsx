@@ -55,9 +55,10 @@ interface Props {
   stations: StationOnRoute[];
   selectedStationId: number | null;
   onStationSelect: (id: number) => void;
+  userPosition: { lat: number; lng: number } | null;
 }
 
-export function MapView({ route, stations, selectedStationId, onStationSelect }: Props) {
+export function MapView({ route, stations, selectedStationId, onStationSelect, userPosition }: Props) {
   const [infoWindowStationId, setInfoWindowStationId] = useState<number | null>(null);
 
   const center = route
@@ -73,6 +74,20 @@ export function MapView({ route, stations, selectedStationId, onStationSelect }:
         >
           {route && <RoutePolyline path={route.decodedPath} />}
           <StationFocus stations={stations} selectedStationId={selectedStationId} />
+
+          {userPosition && (
+            <Marker
+              position={userPosition}
+              icon={{
+                path: 'M 0,0 m -8,0 a 8,8 0 1,0 16,0 a 8,8 0 1,0 -16,0',
+                fillColor: '#2563eb',
+                fillOpacity: 1,
+                strokeColor: 'white',
+                strokeWeight: 2,
+                scale: 1,
+              }}
+            />
+          )}
 
           {stations.map(({ station }) => (
             <Marker

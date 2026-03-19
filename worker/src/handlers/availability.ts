@@ -78,7 +78,7 @@ export async function handleAvailability(req: Request, env: Env): Promise<Respon
   }
 
   const stationIds = fulfilled.map(r => r.id);
-  const historyMap = await getRecentHistory(env, stationIds).catch(() => new Map<string, HistoryPoint[]>());
+  const historyMap = await getRecentHistory(env, stationIds, 25).catch(() => new Map<string, HistoryPoint[]>());
 
   // Build response map: { [ocmId]: { connectors, history } }
   // For fresh (non-cached) readings, prepend the current point so the sparkbar

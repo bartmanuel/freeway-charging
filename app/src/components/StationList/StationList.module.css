@@ -105,46 +105,23 @@
   font-weight: 600;
 }
 
-.availability {
+.availRow {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 6px;
 }
 
-.availRow {
+.availBadges {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 }
 
-/* Spark barchart — shows last N availability readings */
-.sparkBar {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 20px;
-  width: 100%;
-}
-
-.sparkCol {
-  flex: 1;
-  background: #e5e7eb;
-  border-radius: 2px 2px 0 0;
-  position: relative;
-  overflow: hidden;
-  /* height is set as a px value via inline style — avoids % resolution issues
-     with absolutely-positioned children inside overflow:auto scroll chains */
-}
-
-.sparkFill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #2563eb;
-  border-radius: 2px 2px 0 0;
-  /* height is set as a px value via inline style */
+.sparkSvg {
+  display: block;
+  flex-shrink: 0;
 }
 
 .availBadge {

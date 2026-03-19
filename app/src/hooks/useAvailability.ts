@@ -57,6 +57,7 @@ export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
       name: station.name,
       operator: station.operator,
       connectors: station.connectors,
+      totalStalls: station.totalStalls,
     }));
 
     try {

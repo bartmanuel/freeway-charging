@@ -34,8 +34,10 @@ test.describe('Freeway Charge — smoke tests', () => {
     await submitRoute(page, 'Amsterdam, Netherlands', 'Eindhoven, Netherlands');
 
     // Route meta (distance + duration) should appear within 30 s.
-    await expect(page.locator('text=/\\d+ min/')).toBeVisible({ timeout: 30000 });
-    await expect(page.locator('text=/\\d+ km/')).toBeVisible({ timeout: 5000 });
+    // Scope to the routeMeta container so station-list distances don't match.
+    const routeMeta = page.locator('[class*="routeMeta"]');
+    await expect(routeMeta.locator('text=/\\d+ min/')).toBeVisible({ timeout: 30000 });
+    await expect(routeMeta.locator('text=/\\d+ km/')).toBeVisible({ timeout: 5000 });
 
     // Station list should appear. Allow up to 45 s for OCM API.
     const stationList = page.locator('aside ul li');

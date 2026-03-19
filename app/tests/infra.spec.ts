@@ -67,13 +67,15 @@ test.describe('Infrastructure health', () => {
     // Response must be an object keyed by station id
     expect(typeof body).toBe('object');
     expect('45497' in body).toBe(true);
-    // Value is either null (no TomTom match) or an array of connector availability objects
+    // Each value is { connectors: ConnectorAvailability[] | null, history: HistoryPoint[] }
     const val = body['45497'];
-    if (val !== null) {
-      expect(Array.isArray(val)).toBe(true);
-      if (val.length > 0) {
-        expect(typeof val[0].total).toBe('number');
-        expect(typeof val[0].available).toBe('number');
+    expect(typeof val).toBe('object');
+    expect(Array.isArray(val.history)).toBe(true);
+    if (val.connectors !== null) {
+      expect(Array.isArray(val.connectors)).toBe(true);
+      if (val.connectors.length > 0) {
+        expect(typeof val.connectors[0].total).toBe('number');
+        expect(typeof val.connectors[0].available).toBe('number');
       }
     }
   });

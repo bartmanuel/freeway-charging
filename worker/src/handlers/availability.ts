@@ -74,12 +74,19 @@ export async function handleAvailability(req: Request, env: Env): Promise<Respon
   const historyMap = await getRecentHistory(env, stationIds).catch(() => new Map<string, HistoryPoint[]>());
 
   // Build response map: { [ocmId]: { connectors, history } }
+  // For fresh (non-cached) readings, prepend the current point so the sparkbar
+  // starts appearing after the 2nd poll rather than waiting for the 3rd.
+  const now = new Date().toISOString();
   const output: Record<string, StationAvailabilityResult> = {};
   for (const result of fulfilled) {
-    output[result.id] = {
-      connectors: result.connectors,
-      history: historyMap.get(result.id) ?? [],
-    };
+    const stored = historyMap.get(result.id) ?? [];
+    let history = stored;
+    if (!result.fromCache && result.connectors?.length) {
+      const ccs2 = result.connectors[0];
+      const currentPoint: HistoryPoint = { ts: now, avail: ccs2.available, total: ccs2.total };
+      history = [currentPoint, ...stored];
+    }
+    output[result.id] = { connectors: result.connectors, history };
   }
 
   return new Response(JSON.stringify(output), {

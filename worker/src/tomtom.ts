@@ -144,6 +144,19 @@ async function storeTomTomId(env: Env, ocmId: string, tomtomAvailId: string, con
   });
 }
 
+async function deleteTomTomMapping(env: Env, ocmId: string): Promise<void> {
+  await fetch(
+    `${env.SUPABASE_URL}/rest/v1/station_tomtom_map?ocm_id=eq.${encodeURIComponent(ocmId)}`,
+    {
+      method: 'DELETE',
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+    },
+  );
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export interface StationInput {
@@ -153,6 +166,7 @@ export interface StationInput {
   name: string;
   operator: string | null;
   connectors: { type: string; powerKw: number | null }[];
+  totalStalls?: number | null;
 }
 
 export interface ConnectorAvailability {
@@ -255,7 +269,7 @@ export async function fetchStationAvailability(
   if (!availData.connectors?.length) return null;
 
   // 4 — Filter to CCS2 only and map
-  return availData.connectors
+  const result = availData.connectors
     .filter(c => c.type === TARGET_CONNECTOR)
     .map(c => ({
       type: c.type,
@@ -266,4 +280,19 @@ export async function fetchStationAvailability(
       outOfService: c.availability.current.outOfService,
       unknown: c.availability.current.unknown,
     }));
+
+  if (!result.length) return null;
+
+  // 5 — Sanity check: TomTom CCS2 total must not exceed OCM total stalls by more than 2×.
+  //     CCS2 is a subset of all connectors so the OCM total is an upper bound.
+  //     A large discrepancy almost always means TomTom matched a different nearby station.
+  const ocmTotal = station.totalStalls;
+  if (ocmTotal && ocmTotal > 0 && result[0].total > ocmTotal * 2) {
+    // Wrong match — clear the cached mapping so it is retried on the next call
+    const ctx = (globalThis as unknown as { ctx: ExecutionContext }).ctx;
+    ctx.waitUntil(deleteTomTomMapping(env, station.id).catch(() => {}));
+    return null;
+  }
+
+  return result;
 }

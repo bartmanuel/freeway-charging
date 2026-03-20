@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
-import { RouteInput } from './components/RouteInput/RouteInput';
+import { DestinationSearch } from './components/DestinationSearch/DestinationSearch';
+import { DestinationConfirm } from './components/DestinationConfirm/DestinationConfirm';
 import { StationList } from './components/StationList/StationList';
 import { MapView } from './components/MapView/MapView';
 import { useRoute } from './hooks/useRoute';
@@ -19,14 +20,17 @@ const OFF_ROUTE_GRACE_MS = 30_000;
 // Minimum position change (metres) before we bother re-projecting
 const MIN_MOVE_M = 30;
 
+type Screen = 'start' | 'confirm' | 'trip';
+
 export function App() {
+  const [screen, setScreen] = useState<Screen>('start');
+  const [destinationPlace, setDestinationPlace] = useState<google.maps.places.PlaceResult | null>(null);
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
   const [activeView, setActiveView] = useState<'list' | 'map'>('list');
 
   // Location tracking
-  const [trackingEnabled, setTrackingEnabled] = useState(false);
   const [userProjection, setUserProjection] = useState<RouteProjection | null>(null);
   const [showOffRouteBanner, setShowOffRouteBanner] = useState(false);
   const [dismissedUntil, setDismissedUntil] = useState(0);
@@ -41,16 +45,7 @@ export function App() {
     routeQuery.data?.distanceMeters ?? 0,
   );
   const { availabilityMap, pendingIds, secondsUntilRefresh } = useAvailability(stationsQuery.data ?? []);
-  const { position, permissionState } = useGeolocation(trackingEnabled);
-
-  // Reset tracking when a new route is searched
-  useEffect(() => {
-    setTrackingEnabled(false);
-    setUserProjection(null);
-    setShowOffRouteBanner(false);
-    lastPositionRef.current = null;
-    if (offRouteTimerRef.current) clearTimeout(offRouteTimerRef.current);
-  }, [origin, destination]);
+  const { position, permissionState } = useGeolocation(screen !== 'start');
 
   // Project user position onto route whenever GPS updates
   const decodedPath = routeQuery.data?.decodedPath;
@@ -90,18 +85,21 @@ export function App() {
     }
   }, [position, decodedPath, dismissedUntil]);
 
-  function handleRouteSubmit(newOrigin: string, newDestination: string) {
+  function handlePlaceSelected(place: google.maps.places.PlaceResult) {
+    setDestinationPlace(place);
+    setScreen('confirm');
+  }
+
+  function handleGoNow() {
+    if (!position || !destinationPlace) return;
+    const { latitude, longitude } = position;
+    setOrigin(`${latitude.toFixed(6)},${longitude.toFixed(6)}`);
+    setDestination(destinationPlace.formatted_address ?? destinationPlace.name ?? '');
     setSelectedStationId(null);
-    setOrigin(newOrigin);
-    setDestination(newDestination);
+    setScreen('trip');
   }
 
-  function handleStationSelect(id: number | null) {
-    setSelectedStationId(id);
-    if (id !== null) setActiveView('map');
-  }
-
-  const handleRecalculate = useCallback(() => {
+  const handleReroute = useCallback(() => {
     if (!position) return;
     const { latitude, longitude } = position;
     setOrigin(`${latitude.toFixed(6)},${longitude.toFixed(6)}`);
@@ -110,6 +108,27 @@ export function App() {
     setUserProjection(null);
     lastPositionRef.current = null;
   }, [position]);
+
+  function handleStop() {
+    setScreen('start');
+    setDestinationPlace(null);
+    setOrigin('');
+    setDestination('');
+    setSelectedStationId(null);
+    setUserProjection(null);
+    setShowOffRouteBanner(false);
+    setDismissedUntil(0);
+    lastPositionRef.current = null;
+    if (offRouteTimerRef.current) {
+      clearTimeout(offRouteTimerRef.current);
+      offRouteTimerRef.current = null;
+    }
+  }
+
+  function handleStationSelect(id: number | null) {
+    setSelectedStationId(id);
+    if (id !== null) setActiveView('map');
+  }
 
   function handleDismissOffRoute() {
     setShowOffRouteBanner(false);
@@ -120,9 +139,7 @@ export function App() {
     }
   }
 
-  const isLoading = routeQuery.isLoading || stationsQuery.isLoading;
   const error = routeQuery.error || stationsQuery.error;
-  const hasRoute = Boolean(routeQuery.data);
 
   const sidebarClass = [
     styles.sidebar,
@@ -136,109 +153,125 @@ export function App() {
 
   return (
     <APIProvider apiKey={GOOGLE_API_KEY}>
-    <div className={styles.layout}>
+      {screen === 'start' && (
+        <DestinationSearch onPlaceSelected={handlePlaceSelected} />
+      )}
 
-      <aside
-        className={sidebarClass}
-        onClick={activeView === 'map' ? () => setActiveView('list') : undefined}
-      >
-        <header className={styles.header}>
-          <div className={styles.titleRow}>
-            <div>
-              <h1 className={styles.title}>Freeway Charge</h1>
-              <p className={styles.subtitle}>Charging stations along your route</p>
-            </div>
-            {hasRoute && permissionState !== 'denied' && permissionState !== 'unsupported' && (
-              <button
-                className={`${styles.trackBtn} ${trackingEnabled ? styles.trackBtnActive : ''}`}
-                onClick={(e) => { e.stopPropagation(); setTrackingEnabled(v => !v); }}
-                title={trackingEnabled ? 'Stop tracking location' : 'Track my position'}
-              >
-                {trackingEnabled ? '📍' : '📍'}
-                <span>{trackingEnabled ? 'Tracking' : 'Track'}</span>
-              </button>
-            )}
-            {permissionState === 'denied' && (
-              <span className={styles.locationDenied} title="Location permission denied">No location</span>
-            )}
-          </div>
-        </header>
-
-        <RouteInput onSubmit={handleRouteSubmit} isLoading={isLoading} />
-
-        {error && (
-          <div className={styles.error}>
-            {(error as Error).message}
-          </div>
-        )}
-
-        {showOffRouteBanner && (
-          <div className={styles.offRouteBanner}>
-            <span>You've left the planned route.</span>
-            <div className={styles.offRouteBannerActions}>
-              <button className={styles.offRouteRecalc} onClick={handleRecalculate}>
-                Recalculate
-              </button>
-              <button className={styles.offRouteDismiss} onClick={handleDismissOffRoute}>
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
-
-        {routeQuery.data && (
-          <div className={styles.routeMeta}>
-            <span>{(routeQuery.data.distanceMeters / 1000).toFixed(0)} km</span>
-            <span>{Math.round(routeQuery.data.durationSeconds / 60)} min</span>
-            {stationsQuery.data && (
-              <span>{stationsQuery.data.length} stations</span>
-            )}
-          </div>
-        )}
-
-        {stationsQuery.isLoading && (
-          <p className={styles.loading}>Finding charging stations...</p>
-        )}
-
-        {stationsQuery.data && (
-          <>
-            {secondsUntilRefresh !== null && (
-              <p className={styles.refreshCountdown}>
-                Availability refreshes in {secondsUntilRefresh}s
-              </p>
-            )}
-            <StationList
-              stations={stationsQuery.data}
-              selectedId={selectedStationId}
-              onSelect={handleStationSelect}
-              availabilityMap={availabilityMap}
-              pendingIds={pendingIds}
-              userProjection={userProjection}
-            />
-          </>
-        )}
-
-        {/* Thumbnail label — only visible on mobile when this view is inactive */}
-        <div className={styles.thumbnailLabel}>List</div>
-      </aside>
-
-      <main
-        className={mapAreaClass}
-        onClick={activeView === 'list' ? () => setActiveView('map') : undefined}
-      >
-        <MapView
-          route={routeQuery.data ?? null}
-          stations={stationsQuery.data ?? []}
-          selectedStationId={selectedStationId}
-          onStationSelect={setSelectedStationId}
-          userPosition={position ? { lat: position.latitude, lng: position.longitude } : null}
+      {screen === 'confirm' && destinationPlace && (
+        <DestinationConfirm
+          place={destinationPlace}
+          position={position}
+          permissionState={permissionState}
+          onConfirm={handleGoNow}
+          onBack={() => setScreen('start')}
         />
+      )}
 
-        {/* Thumbnail label — only visible on mobile when this view is inactive */}
-        <div className={styles.thumbnailLabel}>Map</div>
-      </main>
+      {screen === 'trip' && (
+        <div className={styles.layout}>
+          <aside
+            className={sidebarClass}
+            onClick={activeView === 'map' ? () => setActiveView('list') : undefined}
+          >
+            <header className={styles.header}>
+              <div className={styles.titleRow}>
+                <div>
+                  <h1 className={styles.title}>Freeway Charge</h1>
+                  {destinationPlace && (
+                    <p className={styles.destination}>&rarr; {destinationPlace.name}</p>
+                  )}
+                </div>
+              </div>
+              <div className={styles.tripControls}>
+                <button
+                  className={styles.rerouteBtn}
+                  onClick={(e) => { e.stopPropagation(); handleReroute(); }}
+                >
+                  Reroute
+                </button>
+                <button
+                  className={styles.stopBtn}
+                  onClick={(e) => { e.stopPropagation(); handleStop(); }}
+                >
+                  Stop
+                </button>
+              </div>
+            </header>
 
-    </div>
+            {error && (
+              <div className={styles.error}>
+                {(error as Error).message}
+              </div>
+            )}
+
+            {showOffRouteBanner && (
+              <div className={styles.offRouteBanner}>
+                <span>You've left the planned route.</span>
+                <div className={styles.offRouteBannerActions}>
+                  <button className={styles.offRouteRecalc} onClick={handleReroute}>
+                    Recalculate
+                  </button>
+                  <button className={styles.offRouteDismiss} onClick={handleDismissOffRoute}>
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {routeQuery.data && (
+              <div className={styles.routeMeta}>
+                <span>{(routeQuery.data.distanceMeters / 1000).toFixed(0)} km</span>
+                <span>{Math.round(routeQuery.data.durationSeconds / 60)} min</span>
+                {stationsQuery.data && (
+                  <span>{stationsQuery.data.length} stations</span>
+                )}
+              </div>
+            )}
+
+            {stationsQuery.isLoading && (
+              <p className={styles.loading}>Finding charging stations...</p>
+            )}
+
+            {stationsQuery.data && (
+              <>
+                {secondsUntilRefresh !== null && (
+                  <p className={styles.refreshCountdown}>
+                    Availability refreshes in {secondsUntilRefresh}s
+                  </p>
+                )}
+                <StationList
+                  stations={stationsQuery.data}
+                  selectedId={selectedStationId}
+                  onSelect={handleStationSelect}
+                  availabilityMap={availabilityMap}
+                  pendingIds={pendingIds}
+                  userProjection={userProjection}
+                />
+              </>
+            )}
+
+            {/* Thumbnail label — only visible on mobile when this view is inactive */}
+            <div className={styles.thumbnailLabel}>List</div>
+          </aside>
+
+          <main
+            className={mapAreaClass}
+            onClick={activeView === 'list' ? () => setActiveView('map') : undefined}
+          >
+            <MapView
+              route={routeQuery.data ?? null}
+              stations={stationsQuery.data ?? []}
+              selectedStationId={selectedStationId}
+              onStationSelect={setSelectedStationId}
+              userPosition={position ? { lat: position.latitude, lng: position.longitude } : null}
+            />
+
+            {/* Thumbnail label — only visible on mobile when this view is inactive */}
+            <div className={styles.thumbnailLabel}>Map</div>
+          </main>
+        </div>
+      )}
+
     </APIProvider>
   );
 }

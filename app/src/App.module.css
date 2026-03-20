@@ -157,6 +157,51 @@
   overflow: hidden;
 }
 
+.destination {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2563eb;
+  margin: 2px 0 0 0;
+}
+
+.tripControls {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.rerouteBtn {
+  flex: 1;
+  padding: 7px 0;
+  border: 1.5px solid #2563eb;
+  border-radius: 6px;
+  background: white;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rerouteBtn:hover {
+  background: #eff6ff;
+}
+
+.stopBtn {
+  flex: 1;
+  padding: 7px 0;
+  border: 1.5px solid #dc2626;
+  border-radius: 6px;
+  background: white;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stopBtn:hover {
+  background: #fef2f2;
+}
+
 /* ── Thumbnail label (hidden on desktop) ─────────────────────────────────── */
 
 .thumbnailLabel {

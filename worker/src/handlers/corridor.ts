@@ -1,6 +1,32 @@
-import { Env } from '../types';
+import { Env, Station } from '../types';
 import { getStationsInBbox, upsertStations } from '../supabase';
 import { fetchStationsFromOCM } from '../ocm';
+
+/**
+ * Deduplicate stations by proximity. When two stations are within
+ * `thresholdM` metres of each other, keep only the one with the preferred
+ * source (NDW > everything else). This prevents the same physical charger
+ * appearing twice when both an NDW row and an old OCM row exist in Supabase.
+ */
+function dedupeByProximity(stations: Station[], thresholdM = 100): Station[] {
+  // Sort so NDW stations come first — they win ties.
+  const sorted = [...stations].sort((a, b) => {
+    const aIsNdw = a.id.startsWith('ndw:') ? 0 : 1;
+    const bIsNdw = b.id.startsWith('ndw:') ? 0 : 1;
+    return aIsNdw - bIsNdw;
+  });
+
+  const kept: Station[] = [];
+  for (const candidate of sorted) {
+    const isDupe = kept.some(k => {
+      const dLat = (k.lat - candidate.lat) * 111_000;
+      const dLng = (k.lng - candidate.lng) * 111_000 * Math.cos((k.lat * Math.PI) / 180);
+      return Math.sqrt(dLat * dLat + dLng * dLng) < thresholdM;
+    });
+    if (!isDupe) kept.push(candidate);
+  }
+  return kept;
+}
 
 // Minimum stations in Supabase before we consider the data sufficient.
 // Below this threshold we fall back to OCM as a supplemental source.
@@ -40,7 +66,8 @@ export async function handleCorridor(req: Request, env: Env): Promise<Response> 
     // Supabase has sufficient data — return it directly.
     // No background OCM refresh: Supabase is updated by the periodic NDW
     // ingestion job (scripts/ingest-ndw.py), not by on-demand OCM calls.
-    return new Response(JSON.stringify(stored), {
+    const deduped = dedupeByProximity(stored);
+    return new Response(JSON.stringify(deduped), {
       headers: { 'Content-Type': 'application/json', 'X-Source': 'supabase' },
     });
   }
@@ -60,9 +87,9 @@ export async function handleCorridor(req: Request, env: Env): Promise<Response> 
     }
   }
 
-  // 4. Merge — Supabase partial results + OCM results, deduped
+  // 4. Merge — Supabase partial results + OCM results, deduped by ID then by proximity
   const storedIds = new Set(stored.map(s => s.id));
-  const merged = [...stored, ...ocmStations.filter(s => !storedIds.has(s.id))];
+  const merged = dedupeByProximity([...stored, ...ocmStations.filter(s => !storedIds.has(s.id))]);
 
   return new Response(JSON.stringify(merged), {
     headers: { 'Content-Type': 'application/json', 'X-Source': 'ocm' },

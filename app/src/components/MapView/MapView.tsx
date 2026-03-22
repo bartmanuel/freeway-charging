@@ -13,7 +13,7 @@ function StationFocus({
   selectedStationId,
 }: {
   stations: StationOnRoute[];
-  selectedStationId: number | null;
+  selectedStationId: string | null;
 }) {
   const map = useMap();
 
@@ -53,13 +53,13 @@ function RoutePolyline({ path }: { path: { lat: number; lng: number }[] }) {
 interface Props {
   route: Route | null;
   stations: StationOnRoute[];
-  selectedStationId: number | null;
-  onStationSelect: (id: number) => void;
+  selectedStationId: string | null;
+  onStationSelect: (id: string) => void;
   userPosition: { lat: number; lng: number } | null;
 }
 
 export function MapView({ route, stations, selectedStationId, onStationSelect, userPosition }: Props) {
-  const [infoWindowStationId, setInfoWindowStationId] = useState<number | null>(null);
+  const [infoWindowStationId, setInfoWindowStationId] = useState<string | null>(null);
 
   const center = route
     ? route.decodedPath[Math.floor(route.decodedPath.length / 2)]

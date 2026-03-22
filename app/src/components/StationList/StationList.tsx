@@ -4,10 +4,10 @@ import styles from './StationList.module.css';
 
 interface Props {
   stations: StationOnRoute[];
-  selectedId: number | null;
-  onSelect: (id: number) => void;
-  availabilityMap?: Map<number, StationAvailability>;
-  pendingIds?: Set<number>;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  availabilityMap?: Map<string, StationAvailability>;
+  pendingIds?: Set<string>;
   userProjection?: RouteProjection | null;
 }
 

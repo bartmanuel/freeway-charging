@@ -27,7 +27,7 @@ export function App() {
   const [destinationPlace, setDestinationPlace] = useState<google.maps.places.PlaceResult | null>(null);
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
-  const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
+  const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'list' | 'map'>('list');
 
   // Location tracking
@@ -125,7 +125,7 @@ export function App() {
     }
   }
 
-  function handleStationSelect(id: number | null) {
+  function handleStationSelect(id: string | null) {
     setSelectedStationId(id);
     if (id !== null) setActiveView('map');
   }

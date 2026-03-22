@@ -6,8 +6,8 @@ const POLL_INTERVAL_MS = 60_000; // 60s — matches TomTom's 3-min cache with he
 const POLL_INTERVAL_S = POLL_INTERVAL_MS / 1000;
 
 export interface AvailabilityState {
-  availabilityMap: Map<number, StationAvailability>;
-  pendingIds: Set<number>;
+  availabilityMap: Map<string, StationAvailability>;
+  pendingIds: Set<string>;
   secondsUntilRefresh: number | null; // null when tab hidden or polling not yet started
 }
 
@@ -17,8 +17,8 @@ export interface AvailabilityState {
  * on becoming visible again.
  */
 export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
-  const [availabilityMap, setAvailabilityMap] = useState<Map<number, StationAvailability>>(new Map());
-  const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
+  const [availabilityMap, setAvailabilityMap] = useState<Map<string, StationAvailability>>(new Map());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [secondsUntilRefresh, setSecondsUntilRefresh] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -72,9 +72,8 @@ export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
       const data = await res.json() as Record<string, { connectors: ConnectorAvailability[] | null; history: HistoryPoint[] }>;
 
       setAvailabilityMap(prev => {
-        const next = new Map<number, StationAvailability>(prev);
-        for (const [idStr, { connectors, history }] of Object.entries(data)) {
-          const id = Number(idStr);
+        const next = new Map<string, StationAvailability>(prev);
+        for (const [id, { connectors, history }] of Object.entries(data)) {
           if (connectors?.length) {
             next.set(id, {
               fetchedAt: new Date().toISOString(),

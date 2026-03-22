@@ -2,8 +2,10 @@ import { Env } from '../types';
 import { getStationsInBbox, upsertStations } from '../supabase';
 import { fetchStationsFromOCM } from '../ocm';
 
-// If Supabase returns fewer than this many stations for the bbox,
-// treat the cache as cold and fall back to OCM.
+// Minimum stations in Supabase before we consider the data sufficient.
+// Below this threshold we fall back to OCM as a supplemental source.
+// With a fully-populated NDW dataset this threshold is easily met for
+// any Dutch route; OCM is mainly needed for cross-border or uncharted areas.
 const MIN_CACHE_HIT = 3;
 
 interface CorridorRequest {
@@ -24,34 +26,30 @@ export async function handleCorridor(req: Request, env: Env): Promise<Response> 
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  const { minLat, maxLat, minLng, maxLng, minPowerKw = 150, encodedPolyline } = body;
+  const { minLat, maxLat, minLng, maxLng, minPowerKw = 50, encodedPolyline } = body;
   if (minLat == null || maxLat == null || minLng == null || maxLng == null) {
     return new Response('minLat, maxLat, minLng, maxLng are required', { status: 400 });
   }
 
   const bbox = { minLat, maxLat, minLng, maxLng };
 
-  // 1. Try Supabase cache first
-  const cached = await getStationsInBbox(env, minLat, maxLat, minLng, maxLng, minPowerKw);
+  // 1. Supabase first — NDW bulk data + any previously OCM-fetched stations
+  const stored = await getStationsInBbox(env, minLat, maxLat, minLng, maxLng, minPowerKw);
 
-  if (cached.length >= MIN_CACHE_HIT) {
-    // Return cached result immediately, but refresh from OCM in the background
-    // (stale-while-revalidate) so the next request sees up-to-date station data.
-    const ctx = (globalThis as unknown as { ctx?: ExecutionContext }).ctx;
-    const refresh = fetchStationsFromOCM(env, bbox, encodedPolyline)
-      .then(stations => stations.length > 0 ? upsertStations(env, stations) : Promise.resolve())
-      .catch(() => {}); // silent — OCM may be temporarily down
-    if (ctx) ctx.waitUntil(refresh);
-
-    return new Response(JSON.stringify(cached), {
-      headers: { 'Content-Type': 'application/json', 'X-Source': 'cache' },
+  if (stored.length >= MIN_CACHE_HIT) {
+    // Supabase has sufficient data — return it directly.
+    // No background OCM refresh: Supabase is updated by the periodic NDW
+    // ingestion job (scripts/ingest-ndw.py), not by on-demand OCM calls.
+    return new Response(JSON.stringify(stored), {
+      headers: { 'Content-Type': 'application/json', 'X-Source': 'supabase' },
     });
   }
 
-  // 2. Cache cold (or sparse) — fetch from OCM
+  // 2. Supabase sparse or empty — fall back to OCM for uncharted areas
+  //    (cross-border routes, countries not yet ingested into Supabase)
   const ocmStations = await fetchStationsFromOCM(env, bbox, encodedPolyline);
 
-  // 3. Upsert into Supabase in the background (don't await — don't block the response)
+  // 3. Upsert OCM results into Supabase in the background
   if (ocmStations.length > 0) {
     const ctx = (globalThis as unknown as { ctx?: ExecutionContext }).ctx;
     const upsert = upsertStations(env, ocmStations);
@@ -62,9 +60,9 @@ export async function handleCorridor(req: Request, env: Env): Promise<Response> 
     }
   }
 
-  // 4. Merge with anything already in cache (avoids duplicates on the first partial hit)
-  const cachedIds = new Set(cached.map(s => s.id));
-  const merged = [...cached, ...ocmStations.filter(s => !cachedIds.has(s.id))];
+  // 4. Merge — Supabase partial results + OCM results, deduped
+  const storedIds = new Set(stored.map(s => s.id));
+  const merged = [...stored, ...ocmStations.filter(s => !storedIds.has(s.id))];
 
   return new Response(JSON.stringify(merged), {
     headers: { 'Content-Type': 'application/json', 'X-Source': 'ocm' },

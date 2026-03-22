@@ -4,7 +4,7 @@ export interface Connector {
 }
 
 export interface Station {
-  id: number;
+  id: string;
   name: string;
   operator: string | null;
   lat: number;

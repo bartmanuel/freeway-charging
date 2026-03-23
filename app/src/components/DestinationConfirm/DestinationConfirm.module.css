@@ -9,6 +9,7 @@
 .mapPreview {
   flex: 1;
   min-height: 200px;
+  max-height: 55dvh;
   position: relative;
 }
 

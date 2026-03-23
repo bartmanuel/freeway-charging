@@ -30,6 +30,12 @@ export function App() {
   const [destination, setDestination] = useState('');
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'list' | 'map'>('list');
+  const [thumbPos, setThumbPos] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{
+    startX: number; startY: number;
+    elemX: number;  elemY: number;
+    isDragging: boolean;
+  } | null>(null);
 
   // Location tracking
   const [userProjection, setUserProjection] = useState<RouteProjection | null>(null);
@@ -89,6 +95,42 @@ export function App() {
       if (!isOffRoute) setShowOffRouteBanner(false);
     }
   }, [position, decodedPath, dismissedUntil]);
+
+  // ── Draggable thumbnail ───────────────────────────────────────────────────
+  const THUMB_W = 110;
+  const THUMB_H = 164;
+
+  function handleThumbPointerDown(e: React.PointerEvent) {
+    if (window.innerWidth > 640) return;
+    const el = e.currentTarget as HTMLElement;
+    const rect = el.getBoundingClientRect();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, elemX: rect.left, elemY: rect.top, isDragging: false };
+    el.setPointerCapture(e.pointerId);
+    e.stopPropagation();
+  }
+
+  function handleThumbPointerMove(e: React.PointerEvent) {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    if (Math.sqrt(dx * dx + dy * dy) > 8) dragRef.current.isDragging = true;
+    if (dragRef.current.isDragging) {
+      const x = Math.max(0, Math.min(window.innerWidth - THUMB_W, dragRef.current.elemX + dx));
+      const y = Math.max(0, Math.min(window.innerHeight - THUMB_H, dragRef.current.elemY + dy));
+      setThumbPos({ x, y });
+    }
+  }
+
+  function handleThumbPointerUp(e: React.PointerEvent, switchTo: 'list' | 'map') {
+    if (!dragRef.current) return;
+    if (!dragRef.current.isDragging) {
+      setActiveView(switchTo);
+      setThumbPos(null);
+    }
+    dragRef.current = null;
+    e.stopPropagation();
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   function handlePlaceSelected(place: google.maps.places.PlaceResult) {
     setDestinationPlace(place);
@@ -176,7 +218,10 @@ export function App() {
         <div className={styles.layout}>
           <aside
             className={sidebarClass}
-            onClick={activeView === 'map' ? () => setActiveView('list') : undefined}
+            style={activeView === 'map' && thumbPos ? { left: thumbPos.x, top: thumbPos.y, right: 'auto', bottom: 'auto' } : undefined}
+            onPointerDown={activeView === 'map' ? handleThumbPointerDown : undefined}
+            onPointerMove={activeView === 'map' ? handleThumbPointerMove : undefined}
+            onPointerUp={activeView === 'map' ? (e) => handleThumbPointerUp(e, 'list') : undefined}
           >
             <header className={styles.header}>
               <div className={styles.titleRow}>
@@ -262,7 +307,10 @@ export function App() {
 
           <main
             className={mapAreaClass}
-            onClick={activeView === 'list' ? () => setActiveView('map') : undefined}
+            style={activeView === 'list' && thumbPos ? { left: thumbPos.x, top: thumbPos.y, right: 'auto', bottom: 'auto' } : undefined}
+            onPointerDown={activeView === 'list' ? handleThumbPointerDown : undefined}
+            onPointerMove={activeView === 'list' ? handleThumbPointerMove : undefined}
+            onPointerUp={activeView === 'list' ? (e) => handleThumbPointerUp(e, 'map') : undefined}
           >
             <MapView
               route={routeQuery.data ?? null}

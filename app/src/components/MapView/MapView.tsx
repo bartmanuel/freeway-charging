@@ -4,6 +4,7 @@ import type { Route } from '../../types/route';
 import type { StationOnRoute, StationAvailability, ConnectorAvailability, Amenity } from '../../types/station';
 import { getMarkerIcon, getListLogoSvg } from '../../utils/operatorIcon';
 import { getBrandConfig } from '../../utils/amenityIcon';
+import { DistancePills } from '../DistancePills/DistancePills';
 import styles from './MapView.module.css';
 
 const DEFAULT_CENTER = { lat: 51.5, lng: 8.0 };
@@ -117,9 +118,12 @@ export function MapView({ route, stations, selectedStationId, onStationSelect, u
           ))}
 
           {infoWindowStationId != null && (() => {
-            const found = stations.find((s) => s.station.id === infoWindowStationId);
-            if (!found) return null;
-            const { station, detourMeters } = found;
+            const stationIndex = stations.findIndex((s) => s.station.id === infoWindowStationId);
+            if (stationIndex === -1) return null;
+            const found = stations[stationIndex];
+            const { station, detourMeters, distanceAlongRouteMeters } = found;
+            const prevDistance = stationIndex > 0 ? stations[stationIndex - 1].distanceAlongRouteMeters : 0;
+            const gapMeters = distanceAlongRouteMeters - prevDistance;
             const availability = availabilityMap?.get(station.id);
             const amenities = amenityMap?.get(station.id) ?? [];
 
@@ -166,13 +170,19 @@ export function MapView({ route, stations, selectedStationId, onStationSelect, u
                     <span className={styles.infoPower}>{station.maxPowerKw} kW</span>
                   </div>
 
-                  {/* Stalls + detour */}
-                  <div className={styles.infoMeta}>
-                    {stallsCount != null && <span>{stallsCount} stalls</span>}
-                    {detourMeters > 100 && (
-                      <span>+{(detourMeters / 1000).toFixed(1)} km detour</span>
-                    )}
-                  </div>
+                  {/* Stalls */}
+                  {stallsCount != null && (
+                    <div className={styles.infoMeta}>
+                      <span>{stallsCount} stalls</span>
+                    </div>
+                  )}
+
+                  {/* Distance pills */}
+                  <DistancePills
+                    distanceAlongRouteMeters={distanceAlongRouteMeters}
+                    detourMeters={detourMeters}
+                    gapMeters={gapMeters}
+                  />
 
                   {/* Live availability badges */}
                   {availability && (

@@ -91,53 +91,25 @@
   margin-bottom: 6px;
 }
 
-.distance {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: #374151;
-}
-
-.detour {
-  color: #6b7280;
-}
-
 .passed {
   opacity: 0.45;
 }
 
+.aheadRow {
+  margin-bottom: 2px;
+}
+
 .passed_label {
+  font-size: 12px;
   color: #9ca3af;
   font-style: italic;
 }
 
 .ahead_label {
+  font-size: 12px;
   color: #2563eb;
   font-weight: 600;
 }
-
-.gapRow {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 4px;
-}
-
-.gapDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.gapLabel {
-  font-size: 11px;
-  color: #6b7280;
-}
-
-.gapGreen  { background: #16a34a; }
-.gapYellow { background: #ca8a04; }
-.gapRed    { background: #dc2626; }
 
 .amenityRow {
   display: flex;

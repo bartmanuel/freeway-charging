@@ -211,41 +211,42 @@
 /* ── Mobile view switching ───────────────────────────────────────────────── */
 
 @media (max-width: 640px) {
-  /* Active view fills the whole screen */
-  .activeMobile {
-    position: fixed !important;
-    inset: 0 !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    height: 100dvh !important;
+  /* Active view fills the whole screen.
+     Double-class specificity (0-2-0) overrides the base .sidebar / .mapArea rules (0-1-0)
+     without needing !important, so inline drag styles can override position props. */
+  .sidebar.activeMobile,
+  .mapArea.activeMobile {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    min-width: 0;
+    height: 100dvh;
     z-index: 1;
     border-right: none;
   }
 
-  /* Inactive view becomes a floating thumbnail in the bottom-right corner */
-  .thumbnailMobile {
-    position: fixed !important;
-    bottom: 28px !important;
-    right: 16px !important;
-    width: 110px !important;
-    min-width: 0 !important;
-    height: 164px !important;
+  /* Inactive view becomes a floating thumbnail.
+     Double-class specificity lets inline styles (from drag) override bottom/right/top/left. */
+  .sidebar.thumbnailMobile,
+  .mapArea.thumbnailMobile {
+    position: fixed;
+    bottom: 28px;
+    right: 16px;
+    width: 110px;
+    min-width: 0;
+    height: 164px;
     border-radius: 14px;
     overflow: hidden;
     z-index: 100;
     cursor: pointer;
     box-shadow: 0 6px 28px rgba(0, 0, 0, 0.38);
     border: 2.5px solid white;
-    /* Disable interaction with content inside the thumbnail */
     pointer-events: auto;
+    touch-action: none; /* prevent scroll interfering with drag */
   }
 
-  .thumbnailMobile > * {
-    pointer-events: none;
-  }
-
-  /* Re-enable clicks on the label itself */
-  .thumbnailMobile > .thumbnailLabel {
+  .sidebar.thumbnailMobile > *,
+  .mapArea.thumbnailMobile > * {
     pointer-events: none;
   }
 
@@ -272,7 +273,8 @@
   }
 
   /* Active view's label is hidden — it's only shown in thumbnail mode */
-  .activeMobile > .thumbnailLabel {
+  .sidebar.activeMobile > .thumbnailLabel,
+  .mapArea.activeMobile > .thumbnailLabel {
     display: none;
   }
 }

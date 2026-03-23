@@ -2,6 +2,7 @@ import type { StationOnRoute, StationAvailability, ConnectorAvailability, Histor
 import type { RouteProjection } from '../../utils/routeProjection';
 import { getListLogoSvg } from '../../utils/operatorIcon';
 import { getBrandConfig } from '../../utils/amenityIcon';
+import { DistancePills } from '../DistancePills/DistancePills';
 import styles from './StationList.module.css';
 
 interface Props {
@@ -12,17 +13,6 @@ interface Props {
   pendingIds?: Set<string>;
   userProjection?: RouteProjection | null;
   amenityMap?: Map<string, Amenity[]>;
-}
-
-function formatDistance(meters: number): string {
-  return meters >= 1000
-    ? `${(meters / 1000).toFixed(0)} km`
-    : `${Math.round(meters)} m`;
-}
-
-function formatDetour(meters: number): string {
-  if (meters < 100) return 'On route';
-  return `+${formatDistance(meters)} detour`;
 }
 
 function powerClass(kw: number): string {
@@ -38,12 +28,6 @@ function availabilityClass(connector: ConnectorAvailability): string {
   if (ratio > 0.5) return styles.availGood;
   if (ratio > 0) return styles.availPartial;
   return styles.availFull;
-}
-
-function gapClass(meters: number): string {
-  if (meters > 120_000) return styles.gapRed;
-  if (meters > 60_000) return styles.gapYellow;
-  return styles.gapGreen;
 }
 
 // ─── Spark chart ─────────────────────────────────────────────────────────────
@@ -254,22 +238,18 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
                 <SparkChart history={availability?.history ?? []} />
               </div>
             )}
-            <div className={styles.distance}>
-              {remainingM !== null ? (
+            {remainingM !== null && (
+              <div className={styles.aheadRow}>
                 <span className={isPassed ? styles.passed_label : styles.ahead_label}>
                   {formatRemainingDistance(distanceAlongRouteMeters, userProjection!.distanceAlongRouteMeters)}
                 </span>
-              ) : (
-                <span>{formatDistance(distanceAlongRouteMeters)} along route</span>
-              )}
-              <span className={styles.detour}>{formatDetour(detourMeters)}</span>
-            </div>
-            <div className={styles.gapRow}>
-              <span className={`${styles.gapDot} ${gapClass(gapMeters)}`} />
-              <span className={styles.gapLabel}>
-                {index === 0 ? 'First stop' : `Gap: ${formatDistance(gapMeters)}`}
-              </span>
-            </div>
+              </div>
+            )}
+            <DistancePills
+              distanceAlongRouteMeters={distanceAlongRouteMeters}
+              detourMeters={detourMeters}
+              gapMeters={gapMeters}
+            />
             {amenities.length > 0 && <AmenityPills amenities={amenities} />}
           </li>
         );

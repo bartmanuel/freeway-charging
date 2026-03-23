@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { StationOnRoute, StationAvailability, HistoryPoint, ConnectorAvailability } from '../types/station';
 
 const WORKER_URL = 'https://freeway-charge-api.bartmanuel.workers.dev';
@@ -11,12 +11,28 @@ export interface AvailabilityState {
   secondsUntilRefresh: number | null; // null when tab hidden or polling not yet started
 }
 
+type StationPayload = {
+  id: string;
+  lat: number;
+  lng: number;
+  name: string;
+  operator: string | null;
+  connectors: { type: string; powerKw: number | null }[];
+  totalStalls: number | null;
+};
+
 /**
  * Fetches live CCS2 availability for all stations from the Worker, then
  * re-polls every 60 s. Pauses when the tab is hidden; resumes immediately
  * on becoming visible again.
+ *
+ * When `selectedStationId` is provided and that station has no data yet,
+ * an immediate single-station fetch is triggered.
  */
-export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
+export function useAvailability(
+  stations: StationOnRoute[],
+  selectedStationId?: string | null,
+): AvailabilityState {
   const [availabilityMap, setAvailabilityMap] = useState<Map<string, StationAvailability>>(new Map());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [secondsUntilRefresh, setSecondsUntilRefresh] = useState<number | null>(null);
@@ -24,6 +40,13 @@ export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stationsRef = useRef(stations);
   stationsRef.current = stations;
+
+  // Stable key: only triggers reset when station IDs actually change,
+  // not when the array reference is recreated with the same content.
+  const stationIds = useMemo(
+    () => stations.map(s => s.station.id).join(','),
+    [stations],
+  );
 
   function startCountdown() {
     if (countdownRef.current) clearInterval(countdownRef.current);
@@ -41,6 +64,40 @@ export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
     setSecondsUntilRefresh(null);
   }
 
+  async function postAvailability(
+    body: StationPayload[],
+  ): Promise<Record<string, { connectors: ConnectorAvailability[] | null; history: HistoryPoint[] }>> {
+    const res = await fetch(`${WORKER_URL}/api/stations/availability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return {};
+    return res.json();
+  }
+
+  function mergeResults(
+    prev: Map<string, StationAvailability>,
+    data: Record<string, { connectors: ConnectorAvailability[] | null; history: HistoryPoint[] }>,
+  ): Map<string, StationAvailability> {
+    const next = new Map<string, StationAvailability>(prev);
+    for (const [id, { connectors, history }] of Object.entries(data)) {
+      if (connectors?.length) {
+        next.set(id, {
+          fetchedAt: new Date().toISOString(),
+          connectors,
+          history: history ?? [],
+        });
+      } else if (prev.has(id)) {
+        const existing = prev.get(id)!;
+        if (history?.length) {
+          next.set(id, { ...existing, history });
+        }
+      }
+    }
+    return next;
+  }
+
   const fetchAll = useCallback(async (isFirstFetch: boolean) => {
     const current = stationsRef.current;
     if (!current.length) return;
@@ -49,7 +106,6 @@ export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
       setPendingIds(new Set(current.map(s => s.station.id)));
     }
 
-    // Build payload: only the fields the Worker needs for ID lookup + matching
     const body = current.map(({ station }) => ({
       id: String(station.id),
       lat: station.lat,
@@ -61,35 +117,8 @@ export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
     }));
 
     try {
-      const res = await fetch(`${WORKER_URL}/api/stations/availability`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) return;
-
-      const data = await res.json() as Record<string, { connectors: ConnectorAvailability[] | null; history: HistoryPoint[] }>;
-
-      setAvailabilityMap(prev => {
-        const next = new Map<string, StationAvailability>(prev);
-        for (const [id, { connectors, history }] of Object.entries(data)) {
-          if (connectors?.length) {
-            next.set(id, {
-              fetchedAt: new Date().toISOString(),
-              connectors,
-              history: history ?? [],
-            });
-          } else if (prev.has(id)) {
-            // Keep stale availability but update history if newer data arrived
-            const existing = prev.get(id)!;
-            if (history?.length) {
-              next.set(id, { ...existing, history });
-            }
-          }
-        }
-        return next;
-      });
+      const data = await postAvailability(body);
+      setAvailabilityMap(prev => mergeResults(prev, data));
     } finally {
       if (isFirstFetch) {
         setPendingIds(new Set());
@@ -97,15 +126,15 @@ export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
     }
   }, []);
 
+  // Main polling effect — keyed on stable station IDs, not array reference
   useEffect(() => {
-    if (!stations.length) return;
+    if (!stationIds) return;
 
     setAvailabilityMap(new Map());
     fetchAll(true).then(startCountdown);
 
     function scheduleNext() {
       timerRef.current = setTimeout(async () => {
-        // Skip poll if tab is hidden — resume on next visibilitychange
         if (document.visibilityState === 'hidden') {
           stopCountdown();
           return;
@@ -120,7 +149,6 @@ export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
 
     function onVisible() {
       if (document.visibilityState !== 'visible') return;
-      // Tab became visible — clear pending timer and re-fetch immediately
       if (timerRef.current) clearTimeout(timerRef.current);
       fetchAll(false).then(() => {
         startCountdown();
@@ -141,7 +169,41 @@ export function useAvailability(stations: StationOnRoute[]): AvailabilityState {
       document.removeEventListener('visibilitychange', onVisible);
       document.removeEventListener('visibilitychange', onHidden);
     };
-  }, [stations, fetchAll]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stationIds, fetchAll]);
+
+  // Auto-fetch for a selected station that has no availability data yet
+  useEffect(() => {
+    if (!selectedStationId) return;
+    // Already have data or already pending
+    if (availabilityMap.has(selectedStationId)) return;
+    if (pendingIds.has(selectedStationId)) return;
+
+    const found = stationsRef.current.find(s => s.station.id === selectedStationId);
+    if (!found) return;
+
+    const { station } = found;
+    setPendingIds(prev => new Set([...prev, station.id]));
+
+    const body: StationPayload[] = [{
+      id: String(station.id),
+      lat: station.lat,
+      lng: station.lng,
+      name: station.name,
+      operator: station.operator,
+      connectors: station.connectors,
+      totalStalls: station.totalStalls,
+    }];
+
+    postAvailability(body)
+      .then(data => setAvailabilityMap(prev => mergeResults(prev, data)))
+      .finally(() => setPendingIds(prev => {
+        const next = new Set(prev);
+        next.delete(station.id);
+        return next;
+      }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStationId]);
 
   return { availabilityMap, pendingIds, secondsUntilRefresh };
 }

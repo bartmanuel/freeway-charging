@@ -7,6 +7,7 @@ import { MapView } from './components/MapView/MapView';
 import { useRoute } from './hooks/useRoute';
 import { useStations } from './hooks/useStations';
 import { useAvailability } from './hooks/useAvailability';
+import { useAmenities } from './hooks/useAmenities';
 import { useGeolocation } from './hooks/useGeolocation';
 import { projectOntoRoute, type RouteProjection } from './utils/routeProjection';
 import styles from './App.module.css';
@@ -44,7 +45,11 @@ export function App() {
     routeQuery.data?.decodedPath ?? [],
     routeQuery.data?.distanceMeters ?? 0,
   );
-  const { availabilityMap, pendingIds, secondsUntilRefresh } = useAvailability(stationsQuery.data ?? []);
+  const { availabilityMap, pendingIds, secondsUntilRefresh } = useAvailability(
+    stationsQuery.data ?? [],
+    selectedStationId,
+  );
+  const amenityMap = useAmenities(stationsQuery.data ?? []);
   const { position, permissionState } = useGeolocation(screen !== 'start');
 
   // Project user position onto route whenever GPS updates
@@ -246,6 +251,7 @@ export function App() {
                   availabilityMap={availabilityMap}
                   pendingIds={pendingIds}
                   userProjection={userProjection}
+                  amenityMap={amenityMap}
                 />
               </>
             )}
@@ -264,6 +270,8 @@ export function App() {
               selectedStationId={selectedStationId}
               onStationSelect={setSelectedStationId}
               userPosition={position ? { lat: position.latitude, lng: position.longitude } : null}
+              availabilityMap={availabilityMap}
+              amenityMap={amenityMap}
             />
 
             {/* Thumbnail label — only visible on mobile when this view is inactive */}

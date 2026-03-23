@@ -8,15 +8,136 @@
   height: 100%;
 }
 
+/* ── Info window ─────────────────────────────────────────────────────────────── */
+
 .infoWindow {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   font-size: 13px;
-  min-width: 160px;
+  min-width: 200px;
+  max-width: 260px;
 }
 
-.infoWindow strong {
-  font-size: 14px;
-  margin-bottom: 4px;
+/* Header row: logo + name/operator + power badge */
+.infoHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.infoLogo {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.infoTitle {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.infoName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.infoOperator {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.infoPower {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Meta: stalls + detour */
+.infoMeta {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Availability badges */
+.infoAvailRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.infoAvailBadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.infoAvailGood    { background: #dcfce7; color: #15803d; }
+.infoAvailPartial { background: #fef9c3; color: #854d0e; }
+.infoAvailFull    { background: #fee2e2; color: #b91c1c; }
+.infoAvailNone    { background: #f3f4f6; color: #6b7280; }
+
+/* Amenity pills */
+.infoAmenityRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.infoAmenityPill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+/* Navigation buttons */
+.infoNavRow {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.infoNavBtn {
+  flex: 1;
+  display: block;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 8px;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.infoNavBtn:hover {
+  opacity: 0.85;
+}
+
+.infoNavGoogle {
+  background: #4285F4;
+  color: #fff;
+}
+
+.infoNavWaze {
+  background: #33CCFF;
+  color: #1a1a1a;
 }

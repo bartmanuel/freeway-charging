@@ -44,3 +44,9 @@ export interface StationOnRoute {
   detourMeters: number;
   score: number;
 }
+
+export interface Amenity {
+  brand: string;   // normalised key e.g. 'mcdonalds', 'starbucks'
+  name: string;    // raw display name from OSM
+  distance: number; // metres from station
+}

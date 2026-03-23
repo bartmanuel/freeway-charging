@@ -116,6 +116,45 @@
   font-weight: 600;
 }
 
+.gapRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.gapDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.gapLabel {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.gapGreen  { background: #16a34a; }
+.gapYellow { background: #ca8a04; }
+.gapRed    { background: #dc2626; }
+
+.amenityRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.amenityPill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
 .availRow {
   display: flex;
   justify-content: space-between;

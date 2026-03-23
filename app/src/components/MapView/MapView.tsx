@@ -1,8 +1,9 @@
 import { Map, Marker, InfoWindow, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { useState, useEffect } from 'react';
 import type { Route } from '../../types/route';
-import type { StationOnRoute } from '../../types/station';
-import { getMarkerIcon } from '../../utils/operatorIcon';
+import type { StationOnRoute, StationAvailability, ConnectorAvailability, Amenity } from '../../types/station';
+import { getMarkerIcon, getListLogoSvg } from '../../utils/operatorIcon';
+import { getBrandConfig } from '../../utils/amenityIcon';
 import styles from './MapView.module.css';
 
 const DEFAULT_CENTER = { lat: 51.5, lng: 8.0 };
@@ -51,15 +52,26 @@ function RoutePolyline({ path }: { path: { lat: number; lng: number }[] }) {
   return null;
 }
 
+function availClass(c: ConnectorAvailability): string {
+  const usable = c.total - c.outOfService;
+  if (usable === 0) return styles.infoAvailNone;
+  const ratio = c.available / usable;
+  if (ratio > 0.5) return styles.infoAvailGood;
+  if (ratio > 0) return styles.infoAvailPartial;
+  return styles.infoAvailFull;
+}
+
 interface Props {
   route: Route | null;
   stations: StationOnRoute[];
   selectedStationId: string | null;
   onStationSelect: (id: string) => void;
   userPosition: { lat: number; lng: number } | null;
+  availabilityMap?: Map<string, StationAvailability>;
+  amenityMap?: Map<string, Amenity[]>;
 }
 
-export function MapView({ route, stations, selectedStationId, onStationSelect, userPosition }: Props) {
+export function MapView({ route, stations, selectedStationId, onStationSelect, userPosition, availabilityMap, amenityMap }: Props) {
   const [infoWindowStationId, setInfoWindowStationId] = useState<string | null>(null);
 
   const center = route
@@ -107,19 +119,107 @@ export function MapView({ route, stations, selectedStationId, onStationSelect, u
             const found = stations.find((s) => s.station.id === infoWindowStationId);
             if (!found) return null;
             const { station, detourMeters } = found;
+            const availability = availabilityMap?.get(station.id);
+            const amenities = amenityMap?.get(station.id) ?? [];
+
+            const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`;
+            const wazeUrl  = `https://waze.com/ul?ll=${station.lat},${station.lng}&navigate=yes`;
+
+            // Stall count: prefer availability total (more accurate) over OCM stalls
+            const stallsCount = availability?.connectors[0]?.total ?? station.totalStalls;
+
+            // Unique amenity brands (top 5)
+            const seenBrands = new Set<string>();
+            const uniqueAmenities = amenities.filter(a => {
+              if (seenBrands.has(a.brand)) return false;
+              seenBrands.add(a.brand);
+              return true;
+            }).slice(0, 5);
+
             return (
               <InfoWindow
                 position={{ lat: station.lat, lng: station.lng }}
                 onCloseClick={() => setInfoWindowStationId(null)}
               >
                 <div className={styles.infoWindow}>
-                  <strong>{station.name}</strong>
-                  <span>{station.maxPowerKw} kW max</span>
-                  {station.totalStalls != null && <span>{station.totalStalls} stalls</span>}
-                  {station.operator && <span>{station.operator}</span>}
-                  {detourMeters > 100 && (
-                    <span>+{(detourMeters / 1000).toFixed(1)} km detour</span>
+                  {/* Header: logo + name + power */}
+                  <div className={styles.infoHeader}>
+                    <span
+                      className={styles.infoLogo}
+                      dangerouslySetInnerHTML={{ __html: getListLogoSvg(station.operator) }}
+                      title={station.operator ?? 'Unknown operator'}
+                    />
+                    <div className={styles.infoTitle}>
+                      <strong className={styles.infoName}>{station.name}</strong>
+                      {station.operator && (
+                        <span className={styles.infoOperator}>{station.operator}</span>
+                      )}
+                    </div>
+                    <span className={styles.infoPower}>{station.maxPowerKw} kW</span>
+                  </div>
+
+                  {/* Stalls + detour */}
+                  <div className={styles.infoMeta}>
+                    {stallsCount != null && <span>{stallsCount} stalls</span>}
+                    {detourMeters > 100 && (
+                      <span>+{(detourMeters / 1000).toFixed(1)} km detour</span>
+                    )}
+                  </div>
+
+                  {/* Live availability badges */}
+                  {availability && (
+                    <div className={styles.infoAvailRow}>
+                      {availability.connectors.map(c => (
+                        <span
+                          key={c.type}
+                          className={`${styles.infoAvailBadge} ${availClass(c)}`}
+                          title={`${c.available} of ${c.total} available`}
+                        >
+                          {c.available}/{c.total} {c.typeLabel}
+                        </span>
+                      ))}
+                    </div>
                   )}
+
+                  {/* Amenities */}
+                  {uniqueAmenities.length > 0 && (
+                    <div className={styles.infoAmenityRow}>
+                      {uniqueAmenities.map(a => {
+                        const cfg = getBrandConfig(a.brand);
+                        if (!cfg) return null;
+                        return (
+                          <span
+                            key={a.brand}
+                            className={styles.infoAmenityPill}
+                            style={{ background: cfg.bg, color: cfg.fg }}
+                            title={`${cfg.label} (~${a.distance} m)`}
+                          >
+                            {cfg.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Navigation links */}
+                  <div className={styles.infoNavRow}>
+                    <a
+                      href={gmapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`${styles.infoNavBtn} ${styles.infoNavGoogle}`}
+                    >
+                      Google Maps
+                    </a>
+                    <a
+                      href={wazeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`${styles.infoNavBtn} ${styles.infoNavWaze}`}
+                    >
+                      Waze
+                    </a>
+                  </div>
                 </div>
               </InfoWindow>
             );

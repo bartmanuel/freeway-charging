@@ -2,6 +2,7 @@ import { Env } from './types';
 import { handleRoute } from './handlers/route';
 import { handleCorridor } from './handlers/corridor';
 import { handleAvailability } from './handlers/availability';
+import { handleAmenities } from './handlers/amenities';
 import { handleHealth } from './handlers/health';
 
 const CORS_HEADERS = {
@@ -31,6 +32,8 @@ export default {
       res = await handleCorridor(req, env);
     } else if (path === '/api/stations/availability' && req.method === 'POST') {
       res = await handleAvailability(req, env);
+    } else if (path === '/api/stations/amenities' && req.method === 'POST') {
+      res = await handleAmenities(req, env);
     } else if (path === '/api/health' && req.method === 'GET') {
       const deep = url.searchParams.get('deep') === 'true';
       res = await handleHealth(req, env, deep);

@@ -1,6 +1,7 @@
-import type { StationOnRoute, StationAvailability, ConnectorAvailability, HistoryPoint } from '../../types/station';
+import type { StationOnRoute, StationAvailability, ConnectorAvailability, HistoryPoint, Amenity } from '../../types/station';
 import type { RouteProjection } from '../../utils/routeProjection';
 import { getListLogoSvg } from '../../utils/operatorIcon';
+import { getBrandConfig } from '../../utils/amenityIcon';
 import styles from './StationList.module.css';
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
   availabilityMap?: Map<string, StationAvailability>;
   pendingIds?: Set<string>;
   userProjection?: RouteProjection | null;
+  amenityMap?: Map<string, Amenity[]>;
 }
 
 function formatDistance(meters: number): string {
@@ -21,12 +23,6 @@ function formatDistance(meters: number): string {
 function formatDetour(meters: number): string {
   if (meters < 100) return 'On route';
   return `+${formatDistance(meters)} detour`;
-}
-
-function powerLabel(kw: number): string {
-  if (kw >= 300) return `${kw} kW`;
-  if (kw >= 150) return `${kw} kW`;
-  return `${kw} kW`;
 }
 
 function powerClass(kw: number): string {
@@ -44,6 +40,12 @@ function availabilityClass(connector: ConnectorAvailability): string {
   return styles.availFull;
 }
 
+function gapClass(meters: number): string {
+  if (meters > 120_000) return styles.gapRed;
+  if (meters > 60_000) return styles.gapYellow;
+  return styles.gapGreen;
+}
+
 // ─── Spark chart ─────────────────────────────────────────────────────────────
 
 const N_BARS   = 20;   // 20 minutes of history
@@ -58,6 +60,11 @@ const LABEL_X  = CHART_W + 7;    // 86 — y-axis text
 const SVG_W    = CHART_W + 22;   // 101
 const SVG_H    = BOTTOM + 10;    // 42
 
+// Minimum bar height for a 0% reading — visually distinct from "no data"
+const MIN_DATA_H = 2;
+// Height of the placeholder grey bar for missing data slots
+const NO_DATA_H  = Math.round(CHART_H / 2);
+
 function barColor(ratio: number): string {
   if (ratio > 0.75) return '#16a34a'; // green
   if (ratio > 0.50) return '#ca8a04'; // yellow
@@ -68,7 +75,6 @@ function barColor(ratio: number): string {
 function SparkChart({ history }: { history: HistoryPoint[] }) {
   if (!history.length) return null;
 
-  // Bucket readings into per-minute slots; history is newest-first
   const nowMs = Date.now();
   const slots: (number | null)[] = new Array(N_BARS).fill(null);
   for (const pt of history) {
@@ -104,9 +110,23 @@ function SparkChart({ history }: { history: HistoryPoint[] }) {
       <text x={CHART_W} y={SVG_H - 1} fontSize={7} fill="#9ca3af" textAnchor="end">now</text>
       {/* Bars */}
       {slots.map((ratio, i) => {
-        if (ratio === null) return null;
-        const barH = Math.max(Math.round(ratio * CHART_H), 1);
         const barX = i * (BAR_W + BAR_GAP);
+        if (ratio === null) {
+          // No data — semi-transparent grey bar at half height
+          return (
+            <rect
+              key={i}
+              x={barX}
+              y={BOTTOM - NO_DATA_H}
+              width={BAR_W}
+              height={NO_DATA_H}
+              fill="#d1d5db"
+              opacity={0.4}
+            />
+          );
+        }
+        // Real data — use at least MIN_DATA_H so 0% is distinguishable from no-data
+        const barH = ratio === 0 ? MIN_DATA_H : Math.max(Math.round(ratio * CHART_H), MIN_DATA_H);
         const barY = BOTTOM - barH;
         return (
           <rect
@@ -132,20 +152,61 @@ function formatRemainingDistance(stationAlongM: number, userAlongM: number): str
   return `${remainingKm.toFixed(1)} km ahead`;
 }
 
-export function StationList({ stations, selectedId, onSelect, availabilityMap, pendingIds, userProjection }: Props) {
+function AmenityPills({ amenities }: { amenities: Amenity[] }) {
+  // De-duplicate brands and show top 5
+  const seen = new Set<string>();
+  const unique = amenities.filter(a => {
+    if (seen.has(a.brand)) return false;
+    seen.add(a.brand);
+    return true;
+  }).slice(0, 5);
+
+  if (unique.length === 0) return null;
+
+  return (
+    <div className={styles.amenityRow}>
+      {unique.map(a => {
+        const cfg = getBrandConfig(a.brand);
+        if (!cfg) return null;
+        return (
+          <span
+            key={a.brand}
+            className={styles.amenityPill}
+            style={{ background: cfg.bg, color: cfg.fg }}
+            title={`${cfg.label} (~${a.distance} m)`}
+          >
+            {cfg.label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+export function StationList({ stations, selectedId, onSelect, availabilityMap, pendingIds, userProjection, amenityMap }: Props) {
   if (stations.length === 0) {
     return <p className={styles.empty}>No charging stations found along this route.</p>;
   }
 
   return (
     <ul className={styles.list}>
-      {stations.map(({ station, distanceAlongRouteMeters, detourMeters }) => {
+      {stations.map(({ station, distanceAlongRouteMeters, detourMeters }, index) => {
         const availability = availabilityMap?.get(station.id);
         const isPending = pendingIds?.has(station.id) ?? false;
+        const amenities = amenityMap?.get(station.id) ?? [];
         const remainingM = userProjection
           ? distanceAlongRouteMeters - userProjection.distanceAlongRouteMeters
           : null;
         const isPassed = remainingM !== null && remainingM < -500;
+
+        // Gap distance: from previous station (or start) to this station
+        const prevDistance = index === 0 ? 0 : stations[index - 1].distanceAlongRouteMeters;
+        const gapMeters = distanceAlongRouteMeters - prevDistance;
+
+        // When availability data is present, use its CCS2 total as the stall count
+        // (TomTom counts physical bays; more accurate than OCM's stall field)
+        const stallsCount = availability?.connectors[0]?.total ?? station.totalStalls;
+
         return (
           <li
             key={station.id}
@@ -164,13 +225,13 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
               />
               <span className={styles.name}>{station.name}</span>
               <span className={`${styles.power} ${powerClass(station.maxPowerKw)}`}>
-                {powerLabel(station.maxPowerKw)}
+                {station.maxPowerKw} kW
               </span>
             </div>
             <div className={styles.meta}>
               <span>{station.operator ?? 'Unknown operator'}</span>
-              {station.totalStalls != null && (
-                <span>{station.totalStalls} stalls</span>
+              {stallsCount != null && (
+                <span>{stallsCount} stalls</span>
               )}
             </div>
             {(availability || isPending) && (
@@ -203,6 +264,13 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
               )}
               <span className={styles.detour}>{formatDetour(detourMeters)}</span>
             </div>
+            <div className={styles.gapRow}>
+              <span className={`${styles.gapDot} ${gapClass(gapMeters)}`} />
+              <span className={styles.gapLabel}>
+                {index === 0 ? 'First stop' : `Gap: ${formatDistance(gapMeters)}`}
+              </span>
+            </div>
+            {amenities.length > 0 && <AmenityPills amenities={amenities} />}
           </li>
         );
       })}

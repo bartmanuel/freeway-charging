@@ -8,25 +8,27 @@
  *  - Tesla:   Simple Icons (simpleicons.org/icons/tesla.svg)
  */
 
-// ── Map marker (small dot, same visual weight as Google's standard dots) ──────
+// ── Map marker (classic teardrop pin) ─────────────────────────────────────────
 //
-// 22×22 px circle with brand colour; no tall teardrop pin shape.
-// The anchor is the centre-bottom of the circle.
+// 18×26 px pin: circle head with pointed tip at bottom-centre.
+// Anchor sits at the tip so the pin sits exactly on the location.
 
-function buildDotSvg(bg: string, stroke: string): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
-  <circle cx="11" cy="11" r="10" fill="${bg}" stroke="${stroke}" stroke-width="1.5"/>
+function buildPinSvg(bg: string, stroke: string): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="26" viewBox="0 0 18 26">
+  <path d="M9,25 C4,19 1,14 1,9 A8,8 0 1,1 17,9 C17,14 14,19 9,25Z"
+        fill="${bg}" stroke="${stroke}" stroke-width="1.5"/>
+  <circle cx="9" cy="9" r="3.5" fill="rgba(255,255,255,0.75)"/>
 </svg>`;
 }
 
-/** Returns a Google Maps `icon` config for a small branded dot. */
+/** Returns a Google Maps `icon` config for a branded teardrop pin. */
 export function getMarkerIcon(operator: string | null): google.maps.Icon {
   const { dotBg, dotStroke } = getMarkerColors(operator);
-  const svg = buildDotSvg(dotBg, dotStroke);
+  const svg = buildPinSvg(dotBg, dotStroke);
   return {
     url: `data:image/svg+xml,${encodeURIComponent(svg)}`,
-    scaledSize: new google.maps.Size(22, 22),
-    anchor: new google.maps.Point(11, 11),
+    scaledSize: new google.maps.Size(18, 26),
+    anchor: new google.maps.Point(9, 25),
   };
 }
 

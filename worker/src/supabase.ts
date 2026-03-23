@@ -17,7 +17,10 @@ export async function getStationsInBbox(
   maxLng: number,
   minPowerKw = 150,
 ): Promise<Station[]> {
-  // PostgREST: multiple params for the same column are ANDed together
+  // PostgREST: multiple params for the same column are ANDed together.
+  // Order by max_power_kw DESC so that if the result set exceeds the row
+  // limit the highest-power stations (IONITY, Fastned, Tesla) are returned
+  // first. Limit set high enough to cover any realistic route bbox.
   const params = new URLSearchParams([
     ['select', 'id,name,operator,lat,lng,max_power_kw,total_stalls,connectors,address,country'],
     ['lat', `gte.${minLat}`],
@@ -25,6 +28,8 @@ export async function getStationsInBbox(
     ['lng', `gte.${minLng}`],
     ['lng', `lte.${maxLng}`],
     ['max_power_kw', `gte.${minPowerKw}`],
+    ['order', 'max_power_kw.desc'],
+    ['limit', '10000'],
   ]);
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/stations?${params}`, {
     headers: headers(env),

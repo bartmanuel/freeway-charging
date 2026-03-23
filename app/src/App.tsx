@@ -272,6 +272,7 @@ export function App() {
               userPosition={position ? { lat: position.latitude, lng: position.longitude } : null}
               availabilityMap={availabilityMap}
               amenityMap={amenityMap}
+              tripDestination={destination}
             />
 
             {/* Thumbnail label — only visible on mobile when this view is inactive */}

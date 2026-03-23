@@ -69,9 +69,10 @@ interface Props {
   userPosition: { lat: number; lng: number } | null;
   availabilityMap?: Map<string, StationAvailability>;
   amenityMap?: Map<string, Amenity[]>;
+  tripDestination?: string; // final destination of the trip, used for navigation deep-links
 }
 
-export function MapView({ route, stations, selectedStationId, onStationSelect, userPosition, availabilityMap, amenityMap }: Props) {
+export function MapView({ route, stations, selectedStationId, onStationSelect, userPosition, availabilityMap, amenityMap, tripDestination }: Props) {
   const [infoWindowStationId, setInfoWindowStationId] = useState<string | null>(null);
 
   const center = route
@@ -122,8 +123,15 @@ export function MapView({ route, stations, selectedStationId, onStationSelect, u
             const availability = availabilityMap?.get(station.id);
             const amenities = amenityMap?.get(station.id) ?? [];
 
-            const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`;
-            const wazeUrl  = `https://waze.com/ul?ll=${station.lat},${station.lng}&navigate=yes`;
+            // Google Maps: add station as a waypoint (stop) before the trip's final destination.
+            // Using waypoints= keeps the original destination in the route rather than replacing it.
+            const gmapsUrl = tripDestination
+              ? `https://www.google.com/maps/dir/?api=1&waypoints=${station.lat},${station.lng}&destination=${encodeURIComponent(tripDestination)}&travelmode=driving`
+              : `https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}&travelmode=driving`;
+
+            // Waze: its URL scheme only supports a single destination, not intermediate stops.
+            // Navigate to the station so the driver can resume their trip afterwards.
+            const wazeUrl = `https://waze.com/ul?ll=${station.lat},${station.lng}&navigate=yes`;
 
             // Stall count: prefer availability total (more accurate) over OCM stalls
             const stallsCount = availability?.connectors[0]?.total ?? station.totalStalls;

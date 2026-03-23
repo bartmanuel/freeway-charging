@@ -143,14 +143,6 @@
   padding: 16px;
 }
 
-.refreshCountdown {
-  font-size: 11px;
-  color: #9ca3af;
-  text-align: right;
-  margin: 0;
-  padding: 0 2px;
-}
-
 .mapArea {
   flex: 1;
   height: 100vh;
@@ -172,34 +164,44 @@
 
 .rerouteBtn {
   flex: 1;
-  padding: 7px 0;
-  border: 1.5px solid #2563eb;
-  border-radius: 6px;
-  background: white;
-  color: #2563eb;
-  font-size: 13px;
-  font-weight: 600;
+  padding: 8px 0;
+  border: none;
+  border-radius: 20px;
+  background: #2563eb;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
 }
 
 .rerouteBtn:hover {
-  background: #eff6ff;
+  background: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
 }
 
 .stopBtn {
   flex: 1;
-  padding: 7px 0;
-  border: 1.5px solid #dc2626;
-  border-radius: 6px;
-  background: white;
-  color: #dc2626;
-  font-size: 13px;
-  font-weight: 600;
+  padding: 8px 0;
+  border: none;
+  border-radius: 20px;
+  background: #111827;
+  color: #f9fafb;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
 .stopBtn:hover {
-  background: #fef2f2;
+  background: #374151;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
 }
 
 /* ── Thumbnail label (hidden on desktop) ─────────────────────────────────── */

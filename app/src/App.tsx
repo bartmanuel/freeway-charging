@@ -51,7 +51,7 @@ export function App() {
     routeQuery.data?.decodedPath ?? [],
     routeQuery.data?.distanceMeters ?? 0,
   );
-  const { availabilityMap, pendingIds, secondsUntilRefresh } = useAvailability(
+  const { availabilityMap, pendingIds } = useAvailability(
     stationsQuery.data ?? [],
     selectedStationId,
   );
@@ -284,11 +284,6 @@ export function App() {
 
             {stationsQuery.data && (
               <>
-                {secondsUntilRefresh !== null && (
-                  <p className={styles.refreshCountdown}>
-                    Availability refreshes in {secondsUntilRefresh}s
-                  </p>
-                )}
                 <StationList
                   stations={stationsQuery.data}
                   selectedId={selectedStationId}

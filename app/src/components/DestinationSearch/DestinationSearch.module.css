@@ -65,3 +65,47 @@
 .input::placeholder {
   color: #9ca3af;
 }
+
+.input:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.locationWarning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fff7ed;
+  border: 1.5px solid #fdba74;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.locationWarning strong {
+  display: block;
+  color: #c2410c;
+  margin-bottom: 3px;
+  font-size: 14px;
+}
+
+.locationWarning p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.locationWarningIcon {
+  font-size: 18px;
+  color: #ea580c;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.locationPrompt {
+  font-size: 13px;
+  color: #6b7280;
+  text-align: center;
+  padding: 6px 0;
+}

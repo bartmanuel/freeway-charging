@@ -227,7 +227,7 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
                   ))
                 ) : (
                   <span className={`${styles.availBadge} ${styles.availNone}`}>
-                    ? stalls
+                    ?/{station.totalStalls ?? '?'} CCS2
                   </span>
                 )}
               </div>

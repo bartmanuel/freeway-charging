@@ -47,6 +47,10 @@
   flex-shrink: 0;
   align-self: center;
   line-height: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  overflow: hidden;
 }
 
 .name {

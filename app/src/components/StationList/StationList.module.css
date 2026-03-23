@@ -37,7 +37,7 @@
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   margin-bottom: 4px;
 }
@@ -93,22 +93,6 @@
 
 .passed {
   opacity: 0.45;
-}
-
-.aheadRow {
-  margin-bottom: 2px;
-}
-
-.passed_label {
-  font-size: 12px;
-  color: #9ca3af;
-  font-style: italic;
-}
-
-.ahead_label {
-  font-size: 12px;
-  color: #2563eb;
-  font-weight: 600;
 }
 
 .amenityRow {

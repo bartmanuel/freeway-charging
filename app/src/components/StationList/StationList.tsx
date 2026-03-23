@@ -129,13 +129,6 @@ function SparkChart({ history }: { history: HistoryPoint[] }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function formatRemainingDistance(stationAlongM: number, userAlongM: number): string {
-  const remainingKm = (stationAlongM - userAlongM) / 1000;
-  if (remainingKm < -0.5) return 'Passed';
-  if (remainingKm < 1) return `${Math.round(remainingKm * 1000)} m ahead`;
-  return `${remainingKm.toFixed(1)} km ahead`;
-}
-
 function AmenityPills({ amenities }: { amenities: Amenity[] }) {
   // De-duplicate brands and show top 5
   const seen = new Set<string>();
@@ -187,10 +180,6 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
         const prevDistance = index === 0 ? 0 : stations[index - 1].distanceAlongRouteMeters;
         const gapMeters = distanceAlongRouteMeters - prevDistance;
 
-        // When availability data is present, use its CCS2 total as the stall count
-        // (TomTom counts physical bays; more accurate than OCM's stall field)
-        const stallsCount = availability?.connectors[0]?.total ?? station.totalStalls;
-
         return (
           <li
             key={station.id}
@@ -214,18 +203,20 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
             </div>
             <div className={styles.meta}>
               <span>{station.operator ?? 'Unknown operator'}</span>
-              {stallsCount != null && (
-                <span>{stallsCount} stalls</span>
-              )}
             </div>
-            {(availability || isPending) && (
-              <div className={styles.availRow}>
-                <div className={styles.availBadges}>
-                  {isPending && !availability ? (
-                    <span className={`${styles.availBadge} ${styles.availPending}`}>
-                      CCS2 &nbsp;•••
-                    </span>
-                  ) : availability?.connectors.map(c => (
+            <DistancePills
+              distanceAlongRouteMeters={distanceAlongRouteMeters}
+              detourMeters={detourMeters}
+              gapMeters={gapMeters}
+            />
+            <div className={styles.availRow}>
+              <div className={styles.availBadges}>
+                {isPending && !availability ? (
+                  <span className={`${styles.availBadge} ${styles.availPending}`}>
+                    CCS2 &nbsp;•••
+                  </span>
+                ) : availability ? (
+                  availability.connectors.map(c => (
                     <span
                       key={c.type}
                       className={`${styles.availBadge} ${availabilityClass(c)}`}
@@ -233,23 +224,15 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
                     >
                       {c.available}/{c.total} {c.typeLabel}
                     </span>
-                  ))}
-                </div>
-                <SparkChart history={availability?.history ?? []} />
+                  ))
+                ) : (
+                  <span className={`${styles.availBadge} ${styles.availNone}`}>
+                    ? stalls
+                  </span>
+                )}
               </div>
-            )}
-            {remainingM !== null && (
-              <div className={styles.aheadRow}>
-                <span className={isPassed ? styles.passed_label : styles.ahead_label}>
-                  {formatRemainingDistance(distanceAlongRouteMeters, userProjection!.distanceAlongRouteMeters)}
-                </span>
-              </div>
-            )}
-            <DistancePills
-              distanceAlongRouteMeters={distanceAlongRouteMeters}
-              detourMeters={detourMeters}
-              gapMeters={gapMeters}
-            />
+              <SparkChart history={availability?.history ?? []} />
+            </div>
             {amenities.length > 0 && <AmenityPills amenities={amenities} />}
           </li>
         );

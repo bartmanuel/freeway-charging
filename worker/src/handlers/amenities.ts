@@ -1,7 +1,9 @@
 import { Env } from '../types';
 import { redisGet, redisSet } from '../redis';
 
-const AMENITY_TTL = 86_400; // 24 hours — motorway services don't move
+const AMENITY_TTL = 86_400;   // 24 hours — motorway services don't move
+const CACHE_VERSION = 'v2';   // bump to invalidate stale cached results
+const OVERPASS_CONCURRENCY = 4; // max simultaneous Overpass requests
 
 // Brands we care about — regex that matches any of them (case-insensitive)
 const BRAND_PATTERN =
@@ -119,26 +121,32 @@ export async function handleAmenities(req: Request, env: Env): Promise<Response>
   }
 
   const output: Record<string, AmenityItem[]> = {};
+  const ctx = (globalThis as unknown as { ctx: ExecutionContext }).ctx;
 
-  await Promise.allSettled(
-    stations.map(async station => {
-      const cacheKey = `amenities:${station.id}`;
-      const cached = await redisGet(env, cacheKey);
-      if (cached) {
-        output[station.id] = JSON.parse(cached) as AmenityItem[];
-        return;
-      }
+  // Process in small batches to avoid hammering Overpass with parallel requests
+  for (let i = 0; i < stations.length; i += OVERPASS_CONCURRENCY) {
+    const chunk = stations.slice(i, i + OVERPASS_CONCURRENCY);
+    await Promise.allSettled(
+      chunk.map(async station => {
+        const cacheKey = `amenities:${CACHE_VERSION}:${station.id}`;
+        const cached = await redisGet(env, cacheKey);
+        if (cached) {
+          output[station.id] = JSON.parse(cached) as AmenityItem[];
+          return;
+        }
 
-      const amenities = await fetchAmenitiesFromOverpass(station.lat, station.lng);
-      output[station.id] = amenities;
+        const amenities = await fetchAmenitiesFromOverpass(station.lat, station.lng);
+        output[station.id] = amenities;
 
-      // Cache even empty results so we don't hammer Overpass
-      const ctx = (globalThis as unknown as { ctx: ExecutionContext }).ctx;
-      ctx.waitUntil(
-        redisSet(env, cacheKey, JSON.stringify(amenities), AMENITY_TTL).catch(() => {}),
-      );
-    }),
-  );
+        // Only cache non-empty results — empty could mean a transient Overpass error
+        if (amenities.length > 0) {
+          ctx.waitUntil(
+            redisSet(env, cacheKey, JSON.stringify(amenities), AMENITY_TTL).catch(() => {}),
+          );
+        }
+      }),
+    );
+  }
 
   return new Response(JSON.stringify(output), {
     headers: { 'Content-Type': 'application/json' },

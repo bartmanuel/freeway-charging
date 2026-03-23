@@ -1,8 +1,9 @@
 import { Env } from '../types';
 import { redisGet, redisSet } from '../redis';
 
-const AMENITY_TTL = 86_400;   // 24 hours — motorway services don't move
-const CACHE_VERSION = 'v2';   // bump to invalidate stale cached results
+const AMENITY_TTL       = 30 * 86_400;  // 30 days — motorway services don't move
+const AMENITY_TTL_EMPTY =      3_600;   // 1 hour  — retry sooner when Overpass returned nothing
+const CACHE_VERSION = 'v3';   // bump to invalidate stale cached results
 const OVERPASS_CONCURRENCY = 4; // max simultaneous Overpass requests
 
 // Brands we care about — regex that matches any of them (case-insensitive)
@@ -138,12 +139,12 @@ export async function handleAmenities(req: Request, env: Env): Promise<Response>
         const amenities = await fetchAmenitiesFromOverpass(station.lat, station.lng);
         output[station.id] = amenities;
 
-        // Only cache non-empty results — empty could mean a transient Overpass error
-        if (amenities.length > 0) {
-          ctx.waitUntil(
-            redisSet(env, cacheKey, JSON.stringify(amenities), AMENITY_TTL).catch(() => {}),
-          );
-        }
+        // Cache hits with the long TTL; cache misses briefly so we don't
+        // hammer Overpass on every request when it returns nothing.
+        const ttl = amenities.length > 0 ? AMENITY_TTL : AMENITY_TTL_EMPTY;
+        ctx.waitUntil(
+          redisSet(env, cacheKey, JSON.stringify(amenities), ttl).catch(() => {}),
+        );
       }),
     );
   }

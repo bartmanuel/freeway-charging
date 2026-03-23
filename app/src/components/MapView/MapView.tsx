@@ -2,6 +2,7 @@ import { Map, Marker, InfoWindow, useMap, useMapsLibrary } from '@vis.gl/react-g
 import { useState, useEffect } from 'react';
 import type { Route } from '../../types/route';
 import type { StationOnRoute } from '../../types/station';
+import { getMarkerIcon } from '../../utils/operatorIcon';
 import styles from './MapView.module.css';
 
 const DEFAULT_CENTER = { lat: 51.5, lng: 8.0 };
@@ -98,14 +99,7 @@ export function MapView({ route, stations, selectedStationId, onStationSelect, u
                 onStationSelect(station.id);
                 setInfoWindowStationId(station.id);
               }}
-              icon={{
-                url:
-                  station.maxPowerKw >= 250
-                    ? 'https://maps.google.com/mapfiles/ms/icons/green-dot.png'
-                    : station.maxPowerKw >= 150
-                      ? 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'
-                      : 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png',
-              }}
+              icon={getMarkerIcon(station.operator)}
             />
           ))}
 

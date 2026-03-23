@@ -6,10 +6,18 @@ import { insertAvailabilityReading, getRecentHistory, HistoryPoint } from '../su
 // Matches TomTom's own refresh cadence — no benefit polling more frequently
 const AVAILABILITY_TTL = 180; // 3 minutes
 
-// Max simultaneous TomTom nearbySearch calls. Batching prevents rate-limit
-// 429s that occur when 15+ calls fire at once (Worker → TomTom is not
-// throttled by a browser's per-domain connection limit like the old client path).
-const CONCURRENCY = 5;
+// Max simultaneous TomTom calls per batch. Keep low to avoid 429s — each
+// station costs up to 2 TomTom calls (nearbySearch + chargingAvailability)
+// on first lookup, 1 call on subsequent polls (ID cached in Supabase).
+const CONCURRENCY = 3;
+
+// Pause between batches to stay within TomTom's rate limit (~5 req/s).
+const BATCH_DELAY_MS = 150;
+
+// Only fetch availability for the first N stations. They are already ordered
+// by distance along the route so this prioritises the stations the driver
+// will actually reach first.
+const MAX_STATIONS = 20;
 
 export interface StationAvailabilityResult {
   connectors: ConnectorAvailability[] | null;
@@ -63,10 +71,16 @@ export async function handleAvailability(req: Request, env: Env): Promise<Respon
     return new Response('Expected a non-empty array of stations', { status: 400 });
   }
 
-  // Process in batches of CONCURRENCY to avoid TomTom rate limits
+  // Cap to the first MAX_STATIONS — they are ordered by distance along route
+  // so this always covers the stations the driver will encounter first.
+  const capped = stations.slice(0, MAX_STATIONS);
+
+  // Process in small batches with a pause between each to stay within
+  // TomTom's rate limit (~5 req/s). Each station costs up to 2 TomTom calls.
   const allResults: PromiseSettledResult<StationResult>[] = [];
-  for (let i = 0; i < stations.length; i += CONCURRENCY) {
-    const chunk = stations.slice(i, i + CONCURRENCY);
+  for (let i = 0; i < capped.length; i += CONCURRENCY) {
+    if (i > 0) await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
+    const chunk = capped.slice(i, i + CONCURRENCY);
     const chunkResults = await Promise.allSettled(chunk.map(s => fetchOne(env, s)));
     allResults.push(...chunkResults);
   }

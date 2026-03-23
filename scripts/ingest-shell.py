@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
 """
-Shell Recharge EV charging station ingestion into Supabase.
+Shell Recharge charging station ingestion into Supabase.
 
-Fetches all public Shell Recharge locations via the Shell EV Public Locations
-API (v2) and upserts DC fast-charge stations (≥50 kW, CCS/CHAdeMO) into the
-Supabase `stations` table.
+Queries the Shell retail locator API (shellretaillocator.geoapp.me), which is the
+public-facing service powering the station-finder map embedded on shell.nl and other
+Shell country websites (via iframe from shell.nl/elektrisch-opladen/vind-een-oplaadpaal.html).
+No authentication required.
+
+Strategy:
+  1. Tile Europe into 1-degree bounding-box cells (≥2° triggers cluster mode, so 1° is safe).
+  2. Per tile: fetch stations filtered to `shell_recharge` fuel; deduplicate by ID.
+  3. For stations that report EV amenities, fetch the detail endpoint which includes
+     connector types, max power, and stall count (ev_charging.charging_points).
+  4. Keep only DC fast-charge stations with ≥ MIN_STALLS stalls AND max_power ≥ MIN_POWER_KW.
+  5. Upsert into the Supabase `stations` table.
 
 Usage:
-  # Credentials from environment or worker/.dev.vars
-  python3 scripts/ingest-shell.py
-
-  # Override minimum power (default 50 kW)
-  python3 scripts/ingest-shell.py --min-kw 100
-
-  # Dry-run: print mapped stations without upserting
-  python3 scripts/ingest-shell.py --dry-run
+  python3 scripts/ingest-shell.py             # full EU run
+  python3 scripts/ingest-shell.py --dry-run   # print without upserting
+  python3 scripts/ingest-shell.py --countries NL,DE,BE
 
 Credentials read from env vars or worker/.dev.vars:
-  SHELL_CONSUMER_KEY        — OAuth2 client_id from developer.shell.com
-  SHELL_CONSUMER_SECRET     — OAuth2 client_secret
   SUPABASE_URL              — Supabase project URL
   SUPABASE_SERVICE_ROLE_KEY — Supabase service role key
 """
@@ -27,25 +29,53 @@ import argparse
 import json
 import os
 import sys
-import time
 import urllib.error
-import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-SHELL_TOKEN_URL     = 'https://api.shell.com/v2/oauth/token'
-SHELL_LOCATIONS_URL = 'https://api.shell.com/ev/v2/locations'
+BASE_URL   = 'https://shellretaillocator.geoapp.me/api/v2'
+USER_AGENT = 'FreewayCharge/1.0 (EV route planner; non-commercial)'
 
-# Shell connector type strings → human-readable label
-DC_CONNECTOR_LABELS = {
-    'CCS':      'CCS (Type 2)',
-    'CHAdeMO':  'CHAdeMO',
-    'CCS1':     'CCS (Type 1)',  # North America
+# Minimum number of DC stalls to include a station.
+MIN_STALLS = 6
+# Minimum power (kW) to count as a DC fast charger.
+MIN_POWER_KW = 50.0
+
+# Only fetch detail for stations that report at least one of these amenities.
+# Stations without these are plain petrol stations with ≤2 slow charge points.
+EV_AMENITIES = {'heavy_duty_ev', 'twenty_four_hour_ev_service', 'ev_service'}
+
+# Per-country (lat_min, lat_max, lng_min, lng_max) used for tile generation.
+COUNTRY_BOUNDS: dict[str, tuple[float, float, float, float]] = {
+    'NL': (50.7, 53.6,  3.3,  7.3),
+    'DE': (47.2, 55.1,  5.8, 15.1),
+    'BE': (49.5, 51.6,  2.5,  6.5),
+    'FR': (41.3, 51.2, -5.2,  9.7),
+    'GB': (49.9, 61.0, -8.2,  2.0),
+    'AT': (46.4, 49.0,  9.5, 17.2),
+    'CH': (45.8, 47.9,  5.9, 10.5),
+    'ES': (36.0, 43.8, -9.3,  4.4),
+    'PT': (37.0, 42.2, -9.5, -6.2),
+    'IT': (36.6, 47.1,  6.6, 18.5),
+    'PL': (49.0, 54.9, 14.1, 24.2),
+    'DK': (54.6, 57.8,  8.1, 15.2),
+    'SE': (55.3, 69.1, 10.9, 24.2),
+    'NO': (57.9, 71.2,  4.5, 31.1),
+    'IE': (51.4, 55.4,-10.7, -5.9),
+    'LU': (49.4, 50.2,  5.7,  6.6),
 }
 
-DEFAULT_MIN_KW = 50
-MAX_POWER_KW   = 1000
-BATCH_SIZE     = 200
-REQUEST_DELAY  = 0.25  # seconds between paginated requests
+ALL_COUNTRIES = sorted(COUNTRY_BOUNDS.keys())
+BATCH_SIZE    = 200
+
+# Shell connector type → our label
+CONNECTOR_TYPE_MAP = {
+    'type_2_combo':  'CCS (Type 2)',
+    'chademo':       'CHAdeMO',
+    'tepco_chademo': 'CHAdeMO',
+    'ccs':           'CCS (Type 2)',
+    'type_2':        'Type 2 (AC)',
+}
 
 
 # ── credentials ───────────────────────────────────────────────────────────────
@@ -64,176 +94,153 @@ def load_dev_vars(path: str) -> dict:
     return result
 
 
-def get_credentials() -> tuple[str, str, str, str]:
+def get_credentials() -> tuple[str, str]:
     dev_vars = load_dev_vars(
         os.path.join(os.path.dirname(__file__), '..', 'worker', '.dev.vars')
     )
-
-    def env(key: str) -> str:
-        return os.environ.get(key, '') or dev_vars.get(key, '')
-
-    shell_key    = env('SHELL_CONSUMER_KEY')
-    shell_secret = env('SHELL_CONSUMER_SECRET')
-    supa_url     = env('SUPABASE_URL').rstrip('/')
-    supa_key     = env('SUPABASE_SERVICE_ROLE_KEY')
-
-    missing = [k for k, v in {
-        'SHELL_CONSUMER_KEY': shell_key,
-        'SHELL_CONSUMER_SECRET': shell_secret,
-        'SUPABASE_URL': supa_url,
-        'SUPABASE_SERVICE_ROLE_KEY': supa_key,
-    }.items() if not v]
-
-    if missing:
-        print(f'ERROR: missing credentials: {", ".join(missing)}', file=sys.stderr)
+    url = (os.environ.get('SUPABASE_URL', '') or dev_vars.get('SUPABASE_URL', '')).rstrip('/')
+    key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '') or dev_vars.get('SUPABASE_SERVICE_ROLE_KEY', '')
+    if not url or not key:
+        print('ERROR: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY not found.', file=sys.stderr)
         sys.exit(1)
+    return url, key
 
-    return shell_key, shell_secret, supa_url, supa_key
 
+# ── HTTP ──────────────────────────────────────────────────────────────────────
 
-# ── Shell API ─────────────────────────────────────────────────────────────────
-
-def get_access_token(consumer_key: str, consumer_secret: str) -> str:
-    payload = urllib.parse.urlencode({
-        'grant_type':    'client_credentials',
-        'client_id':     consumer_key,
-        'client_secret': consumer_secret,
-    }).encode('utf-8')
+def http_get(url: str, timeout: int = 20) -> dict | list | None:
     req = urllib.request.Request(
-        SHELL_TOKEN_URL,
-        data=payload,
-        method='POST',
-        headers={'Content-Type': 'application/x-www-form-urlencoded'},
+        url,
+        headers={
+            'User-Agent': USER_AGENT,
+            'Accept':     'application/json',
+            'Referer':    'https://shellretaillocator.geoapp.me/',
+        },
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            data = json.loads(resp.read())
-        token = data.get('access_token')
-        if not token:
-            print(f'ERROR: no access_token in response: {data}', file=sys.stderr)
-            sys.exit(1)
-        print(f'Got access token (expires in {data.get("expires_in", "?")}s)')
-        return token
-    except urllib.error.HTTPError as e:
-        body = e.read().decode()
-        print(f'ERROR: token request failed (HTTP {e.code}): {body}', file=sys.stderr)
-        sys.exit(1)
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read())
+    except Exception:
+        return None
 
 
-def fetch_locations_page(token: str, offset: int, limit: int = 500) -> dict:
-    params = urllib.parse.urlencode({'offset': offset, 'limit': limit})
-    req = urllib.request.Request(
-        f'{SHELL_LOCATIONS_URL}?{params}',
-        headers={'Authorization': f'Bearer {token}'},
+# ── tile generation ───────────────────────────────────────────────────────────
+
+def generate_tiles(countries: list[str]) -> list[tuple[float, float, float, float]]:
+    """Return deduplicated 1° (south, west, north, east) tiles covering given countries."""
+    tiles: set[tuple[float, float, float, float]] = set()
+    for country in countries:
+        bounds = COUNTRY_BOUNDS.get(country)
+        if not bounds:
+            continue
+        lat_min, lat_max, lng_min, lng_max = bounds
+        lat = lat_min
+        while lat < lat_max:
+            lng = lng_min
+            while lng < lng_max:
+                tiles.add((lat, lng, lat + 1.0, lng + 1.0))
+                lng += 1.0
+            lat += 1.0
+    return sorted(tiles)
+
+
+# ── tile fetch (with automatic sub-tile fallback if clusters appear) ───────────
+
+def fetch_tile(tile: tuple[float, float, float, float], depth: int = 0) -> list[dict]:
+    """Fetch Shell Recharge station stubs within a bounding box."""
+    south, west, north, east = tile
+    url = (
+        f'{BASE_URL}/locations/within_bounds'
+        f'?sw[]={south:.6f}&sw[]={west:.6f}'
+        f'&ne[]={north:.6f}&ne[]={east:.6f}'
+        f'&filter%5Bfuels%5D%5B%5D=shell_recharge'
+        f'&locale=en_GB&format=json&per_page=1000'
     )
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        return json.loads(resp.read())
+    data = http_get(url)
+    if not isinstance(data, dict):
+        return []
 
+    locations = data.get('locations') or []
+    clusters  = data.get('clusters')  or []
 
-def fetch_all_locations(token: str) -> list[dict]:
-    """Fetch all locations via paginated GET /ev/v2/locations."""
-    locations: list[dict] = []
-    offset = 0
-    limit  = 500
+    if clusters and not locations and depth < 2:
+        # Split into four 0.5° sub-tiles and recurse
+        mid_lat = (south + north) / 2
+        mid_lng = (west  + east)  / 2
+        result: list[dict] = []
+        for sub in [
+            (south, west,    mid_lat, mid_lng),
+            (south, mid_lng, mid_lat, east),
+            (mid_lat, west,  north,   mid_lng),
+            (mid_lat, mid_lng, north, east),
+        ]:
+            result.extend(fetch_tile(sub, depth + 1))
+        return result
 
-    while True:
-        print(f'  Fetching offset={offset} …', end='\r', flush=True)
-        try:
-            page = fetch_locations_page(token, offset, limit)
-        except urllib.error.HTTPError as e:
-            body = e.read().decode()
-            print(f'\nERROR: locations request failed (HTTP {e.code}): {body}', file=sys.stderr)
-            sys.exit(1)
-
-        # Response may be a dict with a `data` list, or a plain list
-        if isinstance(page, list):
-            batch = page
-        else:
-            batch = page.get('data') or []
-
-        if not batch:
-            break
-
-        locations.extend(batch)
-        print(f'  Fetched {len(locations):,} locations …', end='\r', flush=True)
-
-        # If we got fewer than the page size, we're done
-        if len(batch) < limit:
-            break
-
-        offset += limit
-        time.sleep(REQUEST_DELAY)
-
-    print(f'  Fetched {len(locations):,} locations total         ')
     return locations
+
+
+# ── detail fetch ──────────────────────────────────────────────────────────────
+
+def fetch_detail(station_id: str) -> dict | None:
+    url = f'{BASE_URL}/locations/{station_id}?locale=en_GB&format=json'
+    data = http_get(url)
+    return data if isinstance(data, dict) else None
 
 
 # ── mapping ───────────────────────────────────────────────────────────────────
 
-def map_location(loc: dict, min_kw: float) -> dict | None:
-    """Map a Shell location object to a Supabase station row. Returns None if
-    the location has no DC fast connectors meeting the power threshold."""
-    coords = loc.get('coordinates') or {}
+def map_station(detail: dict) -> dict | None:
+    ev = detail.get('ev_charging') or {}
+    if not ev:
+        return None
+
     try:
-        lat = float(coords['latitude'])
-        lng = float(coords['longitude'])
-    except (KeyError, TypeError, ValueError):
+        max_power = float(ev.get('max_power') or 0)
+    except (ValueError, TypeError):
+        max_power = 0.0
+
+    if max_power < MIN_POWER_KW:
         return None
 
-    evses = loc.get('evses') or []
-    max_power_kw   = 0.0
-    dc_stall_count = 0
+    charging_points = int(ev.get('charging_points') or 0)
+    if charging_points < MIN_STALLS:
+        return None
+
+    try:
+        lat = float(detail['lat'])
+        lng = float(detail['lng'])
+    except (KeyError, ValueError, TypeError):
+        return None
+
+    # Build connectors list — only DC connectors above threshold
     connectors: list[dict] = []
+    for c in ev.get('connector_data') or []:
+        try:
+            power = float(c.get('max_power') or 0)
+        except (ValueError, TypeError):
+            power = 0.0
+        if power < MIN_POWER_KW:
+            continue
+        raw_type = (c.get('type') or '').lower().replace('-', '_').replace(' ', '_')
+        ctype = CONNECTOR_TYPE_MAP.get(raw_type, raw_type)
+        connectors.append({'type': ctype, 'powerKw': int(power)})
 
-    for evse in evses:
-        evse_dc: list[dict] = []
-        for conn in (evse.get('connectors') or []):
-            ctype = (conn.get('connectorType') or '').strip()
-            if ctype not in DC_CONNECTOR_LABELS:
-                continue
-            elec = conn.get('electricalProperties') or {}
-            power_kw = float(elec.get('maxElectricPower') or 0)
-            if power_kw < min_kw or power_kw > MAX_POWER_KW:
-                continue
-            evse_dc.append({
-                'type':    DC_CONNECTOR_LABELS[ctype],
-                'powerKw': round(power_kw),
-            })
-            max_power_kw = max(max_power_kw, power_kw)
-
-        if evse_dc:
-            dc_stall_count += 1
-            connectors.extend(evse_dc)
-
-    if dc_stall_count == 0:
+    if not connectors:
         return None
 
-    # Build address
-    addr_obj = loc.get('address') or {}
-    address = ', '.join(
-        p for p in [addr_obj.get('street'), addr_obj.get('city')] if p
-    ) or None
-    country = (addr_obj.get('country') or 'XX')[:2].upper()
-
-    # Name: use location name if available, else operator name, else uid
-    name = (
-        loc.get('name')
-        or loc.get('operatorName')
-        or f"Shell {loc.get('uid', '')}"
-    ).strip() or 'Unknown'
-
-    uid = str(loc.get('uid') or loc.get('externalId') or '')
-    if not uid:
-        return None
+    country = (detail.get('country_code') or 'XX').upper()
+    addr_parts = [detail.get('address'), detail.get('city')]
+    address = ', '.join(p for p in addr_parts if p) or None
 
     return {
-        'id':           f'shell:{uid}',
-        'name':         name,
-        'operator':     loc.get('operatorName') or 'Shell Recharge',
+        'id':           f"shell:{detail['id']}",
+        'name':         detail.get('name') or 'Shell Recharge',
+        'operator':     'Shell Recharge',
         'lat':          lat,
         'lng':          lng,
-        'max_power_kw': min(int(max_power_kw), MAX_POWER_KW),
-        'total_stalls': dc_stall_count,
+        'max_power_kw': int(max_power),
+        'total_stalls': charging_points,
         'connectors':   connectors,
         'address':      address,
         'country':      country,
@@ -271,79 +278,108 @@ def main() -> None:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument('--min-kw',   type=float, default=DEFAULT_MIN_KW,
-                        help=f'Minimum connector power in kW (default {DEFAULT_MIN_KW})')
-    parser.add_argument('--dry-run',  action='store_true',
-                        help='Print mapped stations without upserting to Supabase')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Print mapped stations without upserting')
+    parser.add_argument('--countries', default=','.join(ALL_COUNTRIES),
+                        help=f'Comma-separated ISO country codes (default: all {len(ALL_COUNTRIES)} countries)')
+    parser.add_argument('--workers', type=int, default=8,
+                        help='Parallel workers for HTTP calls (default 8)')
     args = parser.parse_args()
 
-    shell_key, shell_secret, supa_url, supa_key = get_credentials()
-    print(f'Supabase: {supa_url}')
+    countries = [c.strip().upper() for c in args.countries.split(',') if c.strip()]
+    unknown = [c for c in countries if c not in COUNTRY_BOUNDS]
+    if unknown:
+        print(f'WARNING: unknown country codes (skipped): {unknown}', file=sys.stderr)
+    countries = [c for c in countries if c in COUNTRY_BOUNDS]
 
-    # ── authenticate ──────────────────────────────────────────────────────────
-    token = get_access_token(shell_key, shell_secret)
+    if not args.dry_run:
+        supa_url, supa_key = get_credentials()
+        print(f'Supabase: {supa_url}')
+    else:
+        supa_url = supa_key = ''
 
-    # ── fetch all locations ───────────────────────────────────────────────────
-    print('Fetching Shell Recharge locations …')
-    raw_locations = fetch_all_locations(token)
-    print(f'Loaded {len(raw_locations):,} raw locations from Shell API')
+    # ── 1. generate tiles ─────────────────────────────────────────────────────
+    tiles = generate_tiles(countries)
+    print(f'Countries: {", ".join(countries)}')
+    print(f'Tiles: {len(tiles):,} (1° cells)')
 
-    # ── filter and map ────────────────────────────────────────────────────────
+    # ── 2. fetch all tiles ────────────────────────────────────────────────────
+    all_stubs: dict[str, dict] = {}
+    tile_done = 0
+    with ThreadPoolExecutor(max_workers=args.workers) as pool:
+        futures = {pool.submit(fetch_tile, t): t for t in tiles}
+        for future in as_completed(futures):
+            for stub in future.result():
+                all_stubs[str(stub['id'])] = stub
+            tile_done += 1
+            if tile_done % 20 == 0 or tile_done == len(tiles):
+                print(f'  Tiles: {tile_done:,}/{len(tiles):,}  unique stations: {len(all_stubs):,}',
+                      end='\r', flush=True)
+    print()
+    print(f'Found {len(all_stubs):,} unique Shell Recharge stations')
+
+    # ── 3. filter to EV-amenity stations before fetching details ─────────────
+    ev_stubs = {
+        sid: stub for sid, stub in all_stubs.items()
+        if EV_AMENITIES & set(stub.get('amenities') or [])
+    }
+    print(f'Stations with EV amenity: {len(ev_stubs):,}  →  fetching details …')
+
+    # ── 4. fetch details in parallel ──────────────────────────────────────────
+    details: dict[str, dict] = {}
+    errors = 0
+    done = 0
+    with ThreadPoolExecutor(max_workers=args.workers) as pool:
+        futures = {pool.submit(fetch_detail, sid): sid for sid in ev_stubs}
+        for future in as_completed(futures):
+            sid = futures[future]
+            detail = future.result()
+            done += 1
+            if detail:
+                details[sid] = detail
+            else:
+                errors += 1
+            if done % 20 == 0 or done == len(ev_stubs):
+                print(f'  Details: {done:,}/{len(ev_stubs):,}', end='\r', flush=True)
+    print()
+    if errors:
+        print(f'  {errors} detail fetch errors (skipped)')
+
+    # ── 5. map + filter ───────────────────────────────────────────────────────
     stations: list[dict] = []
     skipped = 0
-    for loc in raw_locations:
-        station = map_location(loc, args.min_kw)
-        if station:
-            stations.append(station)
+    for detail in details.values():
+        s = map_station(detail)
+        if s:
+            stations.append(s)
         else:
             skipped += 1
 
-    # Deduplicate by id
-    seen: set[str] = set()
-    unique: list[dict] = []
+    print(f'Mapped {len(stations):,} DC stations with ≥{MIN_STALLS} stalls '
+          f'(≥{int(MIN_POWER_KW)} kW), skipped {skipped:,}')
+
+    countries_count: dict[str, int] = {}
     for s in stations:
-        if s['id'] not in seen:
-            seen.add(s['id'])
-            unique.append(s)
-    dupes = len(stations) - len(unique)
-    stations = unique
-
-    print(f'Mapped to {len(stations):,} DC fast-charge stations '
-          f'(≥{args.min_kw:.0f} kW), skipped {skipped:,}'
-          + (f', deduped {dupes}' if dupes else ''))
-
-    # ── operator / country summary ────────────────────────────────────────────
-    ops: dict[str, int] = {}
-    countries: dict[str, int] = {}
-    for s in stations:
-        op = s.get('operator') or 'Unknown'
-        ops[op] = ops.get(op, 0) + 1
-        c = s.get('country') or 'XX'
-        countries[c] = countries.get(c, 0) + 1
-
-    print('\nTop 20 operators:')
-    for op, count in sorted(ops.items(), key=lambda x: -x[1])[:20]:
-        print(f'  {count:4d}  {op}')
-
+        c = s['country']
+        countries_count[c] = countries_count.get(c, 0) + 1
     print('\nCountries:')
-    for c, count in sorted(countries.items(), key=lambda x: -x[1]):
-        print(f'  {count:4d}  {c}')
+    for c, n in sorted(countries_count.items(), key=lambda x: -x[1]):
+        print(f'  {n:4d}  {c}')
     print()
 
     if args.dry_run:
-        print('DRY RUN — not upserting to Supabase.')
+        print('DRY RUN — not upserting.')
         if stations:
-            print('Sample station:')
+            print('Sample:')
             print(json.dumps(stations[0], indent=2))
         return
 
-    # ── upsert to Supabase ────────────────────────────────────────────────────
-    total    = len(stations)
+    # ── 6. upsert ─────────────────────────────────────────────────────────────
+    total = len(stations)
     inserted = 0
     for i in range(0, total, BATCH_SIZE):
-        batch = stations[i : i + BATCH_SIZE]
-        upsert_batch(supa_url, supa_key, batch)
-        inserted += len(batch)
+        upsert_batch(supa_url, supa_key, stations[i: i + BATCH_SIZE])
+        inserted += len(stations[i: i + BATCH_SIZE])
         print(f'  Upserted {inserted:,}/{total:,} ({inserted/total*100:.0f}%)',
               end='\r', flush=True)
 

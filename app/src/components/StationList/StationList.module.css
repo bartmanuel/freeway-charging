@@ -42,6 +42,13 @@
   margin-bottom: 4px;
 }
 
+.operatorLogo {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-self: center;
+  line-height: 0;
+}
+
 .name {
   font-size: 14px;
   font-weight: 600;

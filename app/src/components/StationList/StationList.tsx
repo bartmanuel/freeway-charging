@@ -1,5 +1,6 @@
 import type { StationOnRoute, StationAvailability, ConnectorAvailability, HistoryPoint } from '../../types/station';
 import type { RouteProjection } from '../../utils/routeProjection';
+import { getListLogoSvg } from '../../utils/operatorIcon';
 import styles from './StationList.module.css';
 
 interface Props {
@@ -156,6 +157,11 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
             onClick={() => onSelect(station.id)}
           >
             <div className={styles.header}>
+              <span
+                className={styles.operatorLogo}
+                dangerouslySetInnerHTML={{ __html: getListLogoSvg(station.operator) }}
+                title={station.operator ?? 'Unknown operator'}
+              />
               <span className={styles.name}>{station.name}</span>
               <span className={`${styles.power} ${powerClass(station.maxPowerKw)}`}>
                 {powerLabel(station.maxPowerKw)}

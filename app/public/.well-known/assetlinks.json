@@ -2,9 +2,9 @@
   "relation": ["delegate_permission/common.handle_all_urls"],
   "target": {
     "namespace": "android_app",
-    "package_name": "app.letsjustdrive",
+    "package_name": "app.letsjustdrive.twa",
     "sha256_cert_fingerprints": [
-      "REPLACE_WITH_YOUR_KEYSTORE_SHA256_FINGERPRINT"
+      "D4:54:F2:D5:50:1B:39:8C:8B:10:16:19:76:46:B4:E5:1C:FA:C1:61:D7:50:5A:0F:C6:D2:0B:AD:A7:DE:B3:2B"
     ]
   }
 }]

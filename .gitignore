@@ -5,6 +5,9 @@ node_modules/
 app/node_modules/
 app/dist/
 app/.env*
+# Allow non-secret env files (worker URL only, no API keys)
+!app/.env
+!app/.env.production
 
 # Contains API keys — never commit
 Scratchpad_Statements.txt

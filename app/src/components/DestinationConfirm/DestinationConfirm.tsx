@@ -40,7 +40,7 @@ export function DestinationConfirm({ place, position, permissionState, onConfirm
         )}
         {isDenied ? (
           <p className={styles.locationError}>
-            Location permission is required to use Freeway Charge.
+            Location permission is required to use LetsJustDrive.
           </p>
         ) : (
           <button

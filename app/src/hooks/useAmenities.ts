@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { StationOnRoute, Amenity } from '../types/station';
-
-const WORKER_URL = 'https://freeway-charge-api.bartmanuel.workers.dev';
+import { WORKER_URL } from '../config';
 
 export function useAmenities(stations: StationOnRoute[]): Map<string, Amenity[]> {
   const [amenityMap, setAmenityMap] = useState<Map<string, Amenity[]>>(new Map());

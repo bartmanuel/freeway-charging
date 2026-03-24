@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { StationOnRoute, StationAvailability, HistoryPoint, ConnectorAvailability } from '../types/station';
 
-const WORKER_URL = 'https://freeway-charge-api.bartmanuel.workers.dev';
+import { WORKER_URL } from '../config';
+
 const POLL_INTERVAL_MS = 60_000; // 60s — matches TomTom's 3-min cache with headroom
 const POLL_INTERVAL_S = POLL_INTERVAL_MS / 1000;
 

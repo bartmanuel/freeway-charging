@@ -1,6 +1,6 @@
 import type { Station } from '../types/station';
 
-const WORKER_URL = 'https://freeway-charge-api.bartmanuel.workers.dev';
+import { WORKER_URL } from '../config';
 
 // Worker Station type uses snake_case (Supabase column names)
 interface WorkerStation {

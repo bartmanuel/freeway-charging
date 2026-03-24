@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- PLACEHOLDER — replace with final LetsJustDrive brand icon before Play Store submission -->
+  <rect width="512" height="512" rx="96" fill="#2563eb"/>
+  <!-- Lightning bolt -->
+  <path d="M296 60 L164 272 h96 L212 452 L348 240 H252 Z" fill="white"/>
+</svg>

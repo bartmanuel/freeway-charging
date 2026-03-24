@@ -1,6 +1,6 @@
 import type { LatLng, Route } from '../types/route';
 
-const WORKER_URL = 'https://freeway-charge-api.bartmanuel.workers.dev';
+import { WORKER_URL } from '../config';
 
 // Decodes a Google encoded polyline string into an array of LatLng points.
 export function decodePolyline(encoded: string): LatLng[] {

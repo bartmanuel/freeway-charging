@@ -65,7 +65,7 @@ export function DestinationSearch({ onPlaceSelected }: Props) {
     <div className={styles.screen}>
       <div className={styles.card}>
         <div className={styles.brand}>
-          <h1 className={styles.title}>Freeway Charge</h1>
+          <h1 className={styles.title}>LetsJustDrive</h1>
           <p className={styles.subtitle}>Charging stations along your route</p>
         </div>
 

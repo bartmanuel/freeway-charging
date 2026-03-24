@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- PLACEHOLDER maskable icon — safe zone is inner 409x409px (centred).
+       Replace with final brand icon before Play Store submission.
+       Background MUST bleed to edges — no rounded corners — so any crop shape works. -->
+  <rect width="512" height="512" fill="#2563eb"/>
+  <!-- Lightning bolt, scaled smaller to sit within safe zone -->
+  <path d="M286 110 L184 272 h72 L212 400 L328 240 H256 Z" fill="white"/>
+</svg>

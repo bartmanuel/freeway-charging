@@ -226,7 +226,7 @@ export function App() {
             <header className={styles.header}>
               <div className={styles.titleRow}>
                 <div>
-                  <h1 className={styles.title}>Freeway Charge</h1>
+                  <h1 className={styles.title}>LetsJustDrive</h1>
                   {destinationPlace && (
                     <p className={styles.destination}>&rarr; {destinationPlace.name}</p>
                   )}

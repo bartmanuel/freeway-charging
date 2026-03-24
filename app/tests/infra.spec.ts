@@ -4,6 +4,8 @@ import { test, expect } from '@playwright/test';
 // are all reachable and healthy before shipping.
 // These are pure API calls; no browser is needed.
 
+// Infra tests use the stable workers.dev URL directly — the custom domain
+// api.letsjustdrive.app is set up in Cloudflare and points here.
 const WORKER_URL = 'https://freeway-charge-api.bartmanuel.workers.dev';
 
 test.describe('Infrastructure health', () => {

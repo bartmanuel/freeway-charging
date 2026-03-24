@@ -28,10 +28,10 @@ async function navigateToTrip(page: import('@playwright/test').Page, destination
   await goBtn.click();
 }
 
-test.describe('Freeway Charge — smoke tests', () => {
+test.describe('LetsJustDrive — smoke tests', () => {
   test('start screen loads with title and destination input', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Freeway Charge' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'LetsJustDrive' })).toBeVisible();
     await expect(page.getByText('Where do we go now?')).toBeVisible();
     await expect(page.getByPlaceholder('Enter destination')).toBeVisible();
   });

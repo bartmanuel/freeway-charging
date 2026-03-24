@@ -2,6 +2,11 @@ name = "freeway-charge-api"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[[routes]]
+pattern = "api.letsjustdrive.app/*"
+zone_name = "letsjustdrive.app"
 
 [vars]
 # Non-secret vars go here. Secrets are set via `wrangler secret put`.

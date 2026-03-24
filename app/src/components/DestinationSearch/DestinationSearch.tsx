@@ -65,8 +65,8 @@ export function DestinationSearch({ onPlaceSelected }: Props) {
     <div className={styles.screen}>
       <div className={styles.card}>
         <div className={styles.brand}>
-          <h1 className={styles.title}>LetsJustDrive</h1>
-          <p className={styles.subtitle}>Charging stations along your route</p>
+          <h1 className={styles.title}>let's just drive</h1>
+          <p className={styles.subtitle}>quality charging ON your route</p>
         </div>
 
         {isDenied && (
@@ -89,15 +89,12 @@ export function DestinationSearch({ onPlaceSelected }: Props) {
           </div>
         )}
 
-        <label className={styles.label} htmlFor="dest-input">
-          Where do we go now?
-        </label>
         <input
           id="dest-input"
           ref={inputRef}
           className={styles.input}
           type="text"
-          placeholder="Enter destination"
+          placeholder="Where do we go now?"
           value={value}
           onChange={e => setValue(e.target.value)}
           autoFocus

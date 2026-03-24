@@ -15,7 +15,7 @@ async function grantGeolocation(page: import('@playwright/test').Page) {
 // then clicks "Go now" on the confirm screen.
 async function navigateToTrip(page: import('@playwright/test').Page, destination: string) {
   await grantGeolocation(page);
-  const input = page.getByPlaceholder('Enter destination');
+  const input = page.getByPlaceholder('Where do we go now?');
   await input.click();
   await input.pressSequentially(destination, { delay: 80 });
   // Wait for the Google Places autocomplete dropdown to appear, then pick first item.
@@ -31,15 +31,14 @@ async function navigateToTrip(page: import('@playwright/test').Page, destination
 test.describe('LetsJustDrive — smoke tests', () => {
   test('start screen loads with title and destination input', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'LetsJustDrive' })).toBeVisible();
-    await expect(page.getByText('Where do we go now?')).toBeVisible();
-    await expect(page.getByPlaceholder('Enter destination')).toBeVisible();
+    await expect(page.getByRole('heading', { name: "let's just drive" })).toBeVisible();
+    await expect(page.getByPlaceholder('Where do we go now?')).toBeVisible();
   });
 
   test('confirm screen shows map and Go now button', async ({ page }) => {
     await page.goto('/');
     await grantGeolocation(page);
-    const input = page.getByPlaceholder('Enter destination');
+    const input = page.getByPlaceholder('Where do we go now?');
     await input.click();
     await input.pressSequentially('Eindhoven', { delay: 80 });
     await page.locator('.pac-container').waitFor({ state: 'visible', timeout: 10000 });
@@ -94,7 +93,7 @@ test.describe('LetsJustDrive — smoke tests', () => {
     await navigateToTrip(page, 'Eindhoven, Netherlands');
     await page.getByRole('button', { name: 'Stop' }).waitFor({ timeout: 10000 });
     await page.getByRole('button', { name: 'Stop' }).click();
-    await expect(page.getByPlaceholder('Enter destination')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByPlaceholder('Where do we go now?')).toBeVisible({ timeout: 5000 });
   });
 
   test('selecting a station from the list pans the map', async ({ page }) => {

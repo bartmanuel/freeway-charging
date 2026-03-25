@@ -82,21 +82,28 @@ export function useAvailability(
     data: Record<string, { connectors: ConnectorAvailability[] | null; history: HistoryPoint[] }>,
   ): Map<string, StationAvailability> {
     const next = new Map<string, StationAvailability>(prev);
+    const now = new Date().toISOString();
     for (const [id, { connectors, history }] of Object.entries(data)) {
       if (connectors?.length) {
         const existingHistory = prev.get(id)?.history ?? [];
-        const newHistory = history ?? [];
-        // Keep the richer history: if Supabase had a transient error the server
-        // returns an empty history array; don't let that wipe out what we have.
+        const ccs2 = connectors[0];
+        // Prepend a client-side "current" point so the chart always has ≥1 bar
+        // immediately on the first poll. This is the only clock mixing we do:
+        // DB readings all use Supabase timestamps (consistent relative to each
+        // other); the current point uses client time for slot-19 stability.
+        const currentPoint: HistoryPoint = { ts: now, avail: ccs2.available, total: ccs2.total };
+        const newHistory = [currentPoint, ...(history ?? [])];
+        // Keep the richer history so a transient Supabase error can't wipe the chart.
         next.set(id, {
-          fetchedAt: new Date().toISOString(),
+          fetchedAt: now,
           connectors,
           history: newHistory.length >= existingHistory.length ? newHistory : existingHistory,
         });
       } else if (prev.has(id)) {
         const existing = prev.get(id)!;
-        if (history?.length && history.length >= existing.history.length) {
-          next.set(id, { ...existing, history });
+        const newHistory = history ?? [];
+        if (newHistory.length >= existing.history.length) {
+          next.set(id, { ...existing, history: newHistory });
         }
       }
     }

@@ -3,12 +3,13 @@ import { redisGet, redisSet } from '../redis';
 
 const AMENITY_TTL       = 30 * 86_400;  // 30 days — motorway services don't move
 const AMENITY_TTL_EMPTY =      3_600;   // 1 hour  — retry sooner when Overpass returned nothing
-const CACHE_VERSION = 'v3';   // bump to invalidate stale cached results
+const CACHE_VERSION = 'v4';   // bumped: removed \b word boundaries (POSIX ERE doesn't support them)
 const OVERPASS_CONCURRENCY = 4; // max simultaneous Overpass requests
 
-// Brands we care about — regex that matches any of them (case-insensitive)
+// Brands we care about — Overpass uses POSIX ERE so \b word boundaries are NOT supported.
+// Keep the pattern simple; normaliseBrand() handles false-positive filtering on the JS side.
 const BRAND_PATTERN =
-  'Starbucks|McDonald|Burger King|\\bKFC\\b|Kentucky Fried|Autogrill|\\bPAUL\\b|Bonjour|Serways|Sanifair|2theLoo|2thloo|Carrefour|Arche|Shell';
+  'Starbucks|McDonald|Burger King|KFC|Kentucky Fried|Autogrill|PAUL|Bonjour|Serways|Sanifair|2theLoo|2thloo|Carrefour|Arche|Shell';
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
@@ -74,7 +75,9 @@ out center;`;
     body: `data=${encodeURIComponent(query)}`,
   });
 
-  if (!res.ok) return [];
+  // Don't swallow HTTP errors as empty results — let the caller skip caching
+  // so a transient Overpass outage doesn't poison the cache for an hour.
+  if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
 
   const data = await res.json() as OverpassResponse;
   const seen = new Set<string>();
@@ -136,7 +139,15 @@ export async function handleAmenities(req: Request, env: Env): Promise<Response>
           return;
         }
 
-        const amenities = await fetchAmenitiesFromOverpass(station.lat, station.lng);
+        // fetchAmenitiesFromOverpass throws on HTTP errors — don't cache those.
+        // Only cache when Overpass returned a valid (possibly empty) JSON response.
+        let amenities: AmenityItem[];
+        try {
+          amenities = await fetchAmenitiesFromOverpass(station.lat, station.lng);
+        } catch {
+          output[station.id] = [];
+          return; // skip caching — transient error, retry on next request
+        }
         output[station.id] = amenities;
 
         // Cache hits with the long TTL; cache misses briefly so we don't

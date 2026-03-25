@@ -140,11 +140,10 @@
 }
 
 .routeMetaIcon {
-  width: 13px;
-  height: 13px;
-  vertical-align: middle;
-  margin-left: 2px;
-  opacity: 0.65;
+  width: 16px;
+  height: 16px;
+  vertical-align: text-bottom;
+  margin-left: 1px;
 }
 
 .loading {

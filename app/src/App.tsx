@@ -244,7 +244,7 @@ export function App() {
                       <span className={styles.routeMetaDivider}>|</span>
                       <span>
                         {stationsQuery.data.length}
-                        <img src="/icons/in-app/charger.svg" className={styles.routeMetaIcon} alt="chargers" />
+                        <img src="/icons/in-app/charger-black.svg" className={styles.routeMetaIcon} alt="chargers" />
                       </span>
                     </>
                   )}

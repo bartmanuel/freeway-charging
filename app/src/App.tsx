@@ -21,6 +21,13 @@ const OFF_ROUTE_GRACE_MS = 30_000;
 // Minimum position change (metres) before we bother re-projecting
 const MIN_MOVE_M = 30;
 
+function formatDuration(seconds: number): string {
+  const totalMin = Math.round(seconds / 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}:${m.toString().padStart(2, '0')}`;
+}
+
 type Screen = 'start' | 'confirm' | 'trip';
 
 export function App() {
@@ -224,14 +231,16 @@ export function App() {
             onPointerUp={activeView === 'map' ? (e) => handleThumbPointerUp(e, 'list') : undefined}
           >
             <header className={styles.header}>
-              <div className={styles.titleRow}>
-                <div>
-                  <h1 className={styles.title}>LetsJustDrive</h1>
-                  {destinationPlace && (
-                    <p className={styles.destination}>&rarr; {destinationPlace.name}</p>
-                  )}
+              <h1 className={styles.title}>
+                let's just drive{destinationPlace ? ` to ${destinationPlace.name}` : ''}
+              </h1>
+              {routeQuery.data && (
+                <div className={styles.routeMeta}>
+                  <span>{(routeQuery.data.distanceMeters / 1000).toFixed(0)} km</span>
+                  <span>{formatDuration(routeQuery.data.durationSeconds)}</span>
+                  {stationsQuery.data && <span>{stationsQuery.data.length} stations</span>}
                 </div>
-              </div>
+              )}
               <div className={styles.tripControls}>
                 <button
                   className={styles.rerouteBtn}
@@ -265,16 +274,6 @@ export function App() {
                     Dismiss
                   </button>
                 </div>
-              </div>
-            )}
-
-            {routeQuery.data && (
-              <div className={styles.routeMeta}>
-                <span>{(routeQuery.data.distanceMeters / 1000).toFixed(0)} km</span>
-                <span>{Math.round(routeQuery.data.durationSeconds / 60)} min</span>
-                {stationsQuery.data && (
-                  <span>{stationsQuery.data.length} stations</span>
-                )}
               </div>
             )}
 

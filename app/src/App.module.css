@@ -32,10 +32,10 @@
 }
 
 .title {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   color: #111827;
-  margin: 0 0 2px 0;
+  margin: 0 0 6px 0;
 }
 
 .subtitle {
@@ -126,14 +126,12 @@
 
 .routeMeta {
   display: flex;
-  gap: 16px;
-  padding: 8px 12px;
-  background: white;
-  border-radius: 6px;
+  justify-content: space-between;
+  width: 100%;
   font-size: 13px;
   font-weight: 500;
   color: #374151;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  margin-bottom: 4px;
 }
 
 .loading {
@@ -162,46 +160,24 @@
   margin-top: 10px;
 }
 
-.rerouteBtn {
-  flex: 1;
-  padding: 8px 0;
-  border: none;
-  border-radius: 20px;
-  background: #2563eb;
-  color: white;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
-}
-
-.rerouteBtn:hover {
-  background: #1d4ed8;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
-}
-
+.rerouteBtn,
 .stopBtn {
   flex: 1;
-  padding: 8px 0;
-  border: none;
-  border-radius: 20px;
-  background: #111827;
-  color: #f9fafb;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  padding: 7px 0;
+  border: 1.5px solid #9ca3af;
+  border-radius: 7px;
+  background: white;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  transition: border-color 0.15s, color 0.15s;
 }
 
+.rerouteBtn:hover,
 .stopBtn:hover {
-  background: #374151;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  border-color: #6b7280;
+  color: #374151;
 }
 
 /* ── Thumbnail label (hidden on desktop) ─────────────────────────────────── */

@@ -78,7 +78,7 @@ test.describe('LetsJustDrive — smoke tests', () => {
 
     // Route meta (distance + duration) should appear within 30 s.
     const routeMeta = page.locator('[class*="routeMeta"]');
-    await expect(routeMeta.locator('text=/\\d+ min/')).toBeVisible({ timeout: 30000 });
+    await expect(routeMeta.locator('text=/\\d+:\\d+/')).toBeVisible({ timeout: 30000 });
     await expect(routeMeta.locator('text=/\\d+ km/')).toBeVisible({ timeout: 5000 });
 
     // Station list should appear. Allow up to 45 s for OCM API.

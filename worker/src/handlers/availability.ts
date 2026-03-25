@@ -101,20 +101,13 @@ export async function handleAvailability(req: Request, env: Env): Promise<Respon
   const historyMap = await getRecentHistory(env, stationIds, 25).catch(() => new Map<string, HistoryPoint[]>());
 
   // Build response map: { [ocmId]: { connectors, history } }
-  // For fresh (non-cached) readings, prepend the current point so the sparkbar
-  // starts appearing after the 2nd poll rather than waiting for the 3rd.
-  const now = new Date().toISOString();
+  // Use only DB-stored readings — no synthetic "currentPoint" injection.
+  // Mixing Worker clock (currentPoint.ts) with Supabase clock (sampled_at)
+  // caused clock-drift mismatches that made bars appear to be in the future
+  // and get filtered out. All history entries now share one clock source.
   const output: Record<string, StationAvailabilityResult> = {};
   for (const result of fulfilled) {
-    const stored = historyMap.get(result.id) ?? [];
-    let history = stored;
-    // Always prepend the current reading so the sparkbar includes the live value
-    // and shows up as soon as we have ≥1 stored reading from a previous poll.
-    if (result.connectors?.length) {
-      const ccs2 = result.connectors[0];
-      const currentPoint: HistoryPoint = { ts: now, avail: ccs2.available, total: ccs2.total };
-      history = [currentPoint, ...stored];
-    }
+    const history = historyMap.get(result.id) ?? [];
     output[result.id] = { connectors: result.connectors, history };
   }
 

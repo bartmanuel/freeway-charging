@@ -52,13 +52,14 @@ function barColor(ratio: number): string {
   return '#dc2626';                    // red
 }
 
-function SparkChart({ history, fetchedAt }: { history: HistoryPoint[]; fetchedAt: string }) {
+function SparkChart({ history }: { history: HistoryPoint[] }) {
   if (!history.length) return null;
 
-  // Use the poll timestamp (client-side, captured when data arrived) as the clock.
-  // If we used Date.now() the countdown re-renders every second would shift bars
-  // at minute boundaries between polls.
-  const nowMinute = Math.floor(new Date(fetchedAt).getTime() / 60_000);
+  // Use the newest reading's own timestamp as the reference "now".
+  // This is fully clock-agnostic: no dependency on Date.now(), fetchedAt,
+  // or Worker vs Supabase clock alignment. history[0] is always the most
+  // recent DB row (ORDER BY sampled_at DESC), so it always lands at slot 19.
+  const nowMinute = Math.floor(new Date(history[0].ts).getTime() / 60_000);
   const slots: (number | null)[] = new Array(N_BARS).fill(null);
   for (const pt of history) {
     const ptMinute = Math.floor(new Date(pt.ts).getTime() / 60_000);
@@ -229,7 +230,7 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
             />
             {(availability?.history?.length ?? 0) > 0 && (
               <div className={styles.sparkRow}>
-                <SparkChart history={availability!.history} fetchedAt={availability!.fetchedAt} />
+                <SparkChart history={availability!.history} />
               </div>
             )}
             {amenities.length > 0 && <AmenityPills amenities={amenities} />}

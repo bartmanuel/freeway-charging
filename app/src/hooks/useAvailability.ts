@@ -84,14 +84,18 @@ export function useAvailability(
     const next = new Map<string, StationAvailability>(prev);
     for (const [id, { connectors, history }] of Object.entries(data)) {
       if (connectors?.length) {
+        const existingHistory = prev.get(id)?.history ?? [];
+        const newHistory = history ?? [];
+        // Keep the richer history: if Supabase had a transient error the server
+        // returns an empty history array; don't let that wipe out what we have.
         next.set(id, {
           fetchedAt: new Date().toISOString(),
           connectors,
-          history: history ?? [],
+          history: newHistory.length >= existingHistory.length ? newHistory : existingHistory,
         });
       } else if (prev.has(id)) {
         const existing = prev.get(id)!;
-        if (history?.length) {
+        if (history?.length && history.length >= existing.history.length) {
           next.set(id, { ...existing, history });
         }
       }

@@ -315,6 +315,7 @@ export function App() {
               availabilityMap={availabilityMap}
               amenityMap={amenityMap}
               tripDestination={destination}
+              activeView={activeView}
             />
 
             {/* Thumbnail label — only visible on mobile when this view is inactive */}

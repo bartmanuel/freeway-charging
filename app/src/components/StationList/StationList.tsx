@@ -30,17 +30,15 @@ function availabilityClass(connector: ConnectorAvailability): string {
 
 // ─── Spark chart ─────────────────────────────────────────────────────────────
 
-const N_BARS   = 20;   // 20 minutes of history
-const BAR_W    = 3;    // px per bar
-const BAR_GAP  = 1;    // px between bars
-const CHART_W  = N_BARS * BAR_W + (N_BARS - 1) * BAR_GAP; // 79
-const CHART_H  = 28;   // px, chart plot area height
-const TOP      = 4;    // top margin
-const BOTTOM   = TOP + CHART_H;  // y of x-axis = 32
-const YAXIS_X  = CHART_W + 4;    // 83 — vertical axis line
-const LABEL_X  = CHART_W + 7;    // 86 — y-axis text
-const SVG_W    = CHART_W + 22;   // 101
-const SVG_H    = BOTTOM + 10;    // 42
+const N_BARS    = 20;   // 20 minutes of history
+const BAR_W     = 3;    // px per bar
+const BAR_GAP   = 1;    // px between bars
+const CHART_W   = N_BARS * BAR_W + (N_BARS - 1) * BAR_GAP; // 79
+const CHART_H   = 28;   // px, chart plot area height
+const TOP       = 4;    // top margin
+const BOTTOM    = TOP + CHART_H;  // y of x-axis = 32
+const BAR_SVG_H = BOTTOM + 1;    // 33 — +1 ensures x-axis stroke is fully visible
+const AXIS_W    = 26;   // fixed px width for y-axis SVG
 
 // Minimum bar height for a 0% reading — visually distinct from "no data"
 const MIN_DATA_H = 2;
@@ -71,59 +69,50 @@ function SparkChart({ history }: { history: HistoryPoint[] }) {
   if (slots.every(s => s === null)) return null;
 
   return (
-    <svg
-      width="100%"
-      height={SVG_H}
-      viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-      preserveAspectRatio="none"
-      className={styles.sparkSvg}
-      aria-label="Availability — last 20 minutes"
-    >
-      {/* X-axis */}
-      <line x1={0} y1={BOTTOM} x2={CHART_W} y2={BOTTOM} stroke="#d1d5db" strokeWidth={1} />
-      {/* Y-axis */}
-      <line x1={YAXIS_X} y1={TOP} x2={YAXIS_X} y2={BOTTOM} stroke="#d1d5db" strokeWidth={1} />
-      {/* Y-axis ticks */}
-      <line x1={YAXIS_X} y1={TOP}    x2={YAXIS_X + 3} y2={TOP}    stroke="#d1d5db" strokeWidth={1} />
-      <line x1={YAXIS_X} y1={BOTTOM} x2={YAXIS_X + 3} y2={BOTTOM} stroke="#d1d5db" strokeWidth={1} />
-      {/* Y-axis labels */}
-      <text x={LABEL_X} y={TOP + 4}    fontSize={7} fill="#9ca3af">100%</text>
-      <text x={LABEL_X} y={BOTTOM - 1} fontSize={7} fill="#9ca3af">0%</text>
-      {/* X-axis time labels */}
-      <text x={0}       y={SVG_H - 1} fontSize={7} fill="#9ca3af" textAnchor="start">−20m</text>
-      <text x={CHART_W} y={SVG_H - 1} fontSize={7} fill="#9ca3af" textAnchor="end">now</text>
-      {/* Bars */}
-      {slots.map((ratio, i) => {
-        const barX = i * (BAR_W + BAR_GAP);
-        if (ratio === null) {
-          // No data — semi-transparent grey bar at half height
-          return (
-            <rect
-              key={i}
-              x={barX}
-              y={BOTTOM - NO_DATA_H}
-              width={BAR_W}
-              height={NO_DATA_H}
-              fill="#d1d5db"
-              opacity={0.4}
-            />
-          );
-        }
-        // Real data — use at least MIN_DATA_H so 0% is distinguishable from no-data
-        const barH = ratio === 0 ? MIN_DATA_H : Math.max(Math.round(ratio * CHART_H), MIN_DATA_H);
-        const barY = BOTTOM - barH;
-        return (
-          <rect
-            key={i}
-            x={barX}
-            y={barY}
-            width={BAR_W}
-            height={barH}
-            fill={barColor(ratio)}
-          />
-        );
-      })}
-    </svg>
+    <>
+      <div className={styles.sparkInner}>
+        {/* Bars — stretches horizontally, preserveAspectRatio="none" for x-scaling only */}
+        <svg
+          className={styles.sparkBarSvg}
+          viewBox={`0 0 ${CHART_W} ${BAR_SVG_H}`}
+          preserveAspectRatio="none"
+          height={BAR_SVG_H}
+          aria-label="Availability — last 20 minutes"
+        >
+          <line x1={0} y1={BOTTOM} x2={CHART_W} y2={BOTTOM} stroke="#d1d5db" strokeWidth={1} />
+          {slots.map((ratio, i) => {
+            const barX = i * (BAR_W + BAR_GAP);
+            if (ratio === null) {
+              return (
+                <rect key={i} x={barX} y={BOTTOM - NO_DATA_H} width={BAR_W} height={NO_DATA_H} fill="#d1d5db" opacity={0.4} />
+              );
+            }
+            const barH = ratio === 0 ? MIN_DATA_H : Math.max(Math.round(ratio * CHART_H), MIN_DATA_H);
+            return (
+              <rect key={i} x={barX} y={BOTTOM - barH} width={BAR_W} height={barH} fill={barColor(ratio)} />
+            );
+          })}
+        </svg>
+        {/* Y-axis — fixed width, text not stretched */}
+        <svg
+          className={styles.sparkAxisSvg}
+          viewBox={`0 0 ${AXIS_W} ${BAR_SVG_H}`}
+          width={AXIS_W}
+          height={BAR_SVG_H}
+        >
+          <line x1={4} y1={TOP}    x2={4} y2={BOTTOM} stroke="#d1d5db" strokeWidth={1} />
+          <line x1={4} y1={TOP}    x2={7} y2={TOP}    stroke="#d1d5db" strokeWidth={1} />
+          <line x1={4} y1={BOTTOM} x2={7} y2={BOTTOM} stroke="#d1d5db" strokeWidth={1} />
+          <text x={8} y={TOP + 4}    fontSize={7} fill="#9ca3af">100%</text>
+          <text x={8} y={BOTTOM - 1} fontSize={7} fill="#9ca3af">0%</text>
+        </svg>
+      </div>
+      {/* Time labels span only the bar area (not under the axis) */}
+      <div className={styles.sparkTimes}>
+        <span>−20m</span>
+        <span>now</span>
+      </div>
+    </>
   );
 }
 

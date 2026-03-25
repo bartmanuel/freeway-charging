@@ -58,9 +58,10 @@
 }
 
 .name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #111827;
+  line-height: 20px;
 }
 
 .nameCpo {
@@ -68,6 +69,7 @@
   font-size: 13px;
   font-weight: 400;
   color: #374151;
+  line-height: 20px;
 }
 
 .rightCol {
@@ -75,7 +77,7 @@
   flex-direction: column;
   align-items: flex-end;
   flex-shrink: 0;
-  gap: 2px;
+  gap: 0;
 }
 
 .power {
@@ -83,6 +85,7 @@
   font-weight: 700;
   color: #111827;
   white-space: nowrap;
+  line-height: 20px;
 }
 
 .availCount {
@@ -93,6 +96,7 @@
   font-weight: 700;
   color: #111827;
   white-space: nowrap;
+  height: 20px;
 }
 
 .passed {
@@ -118,11 +122,33 @@
 .sparkRow {
   margin-top: 6px;
   width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.sparkSvg {
-  display: block;
+.sparkInner {
+  display: flex;
   width: 100%;
+}
+
+.sparkBarSvg {
+  display: block;
+  flex: 1;
+}
+
+.sparkAxisSvg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.sparkTimes {
+  display: flex;
+  justify-content: space-between;
+  padding-right: 26px; /* keep aligned with bar area, not under axis */
+  font-size: 7px;
+  line-height: 1;
+  color: #9ca3af;
+  margin-top: 2px;
 }
 
 .availText {

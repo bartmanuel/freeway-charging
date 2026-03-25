@@ -31,6 +31,30 @@ function StationFocus({
   return null;
 }
 
+// Fits the map to the full route whenever the route changes or the active view changes.
+function RouteFit({
+  route,
+  activeView,
+  selectedStationId,
+}: {
+  route: Route | null;
+  activeView: 'list' | 'map';
+  selectedStationId: string | null;
+}) {
+  const map = useMap();
+  const coreLib = useMapsLibrary('core');
+
+  useEffect(() => {
+    if (!map || !coreLib || !route || route.decodedPath.length < 2) return;
+    if (selectedStationId) return; // don't override station focus
+    const bounds = new coreLib.LatLngBounds();
+    for (const pt of route.decodedPath) bounds.extend(pt);
+    map.fitBounds(bounds, 40);
+  }, [map, coreLib, route, activeView, selectedStationId]);
+
+  return null;
+}
+
 // Draws the route polyline imperatively via the Maps API.
 function RoutePolyline({ path }: { path: { lat: number; lng: number }[] }) {
   const map = useMap();
@@ -70,10 +94,11 @@ interface Props {
   userPosition: { lat: number; lng: number } | null;
   availabilityMap?: Map<string, StationAvailability>;
   amenityMap?: Map<string, Amenity[]>;
-  tripDestination?: string; // final destination of the trip, used for navigation deep-links
+  tripDestination?: string;
+  activeView: 'list' | 'map';
 }
 
-export function MapView({ route, stations, selectedStationId, onStationSelect, userPosition, availabilityMap, amenityMap, tripDestination }: Props) {
+export function MapView({ route, stations, selectedStationId, onStationSelect, userPosition, availabilityMap, amenityMap, tripDestination, activeView }: Props) {
   const [infoWindowStationId, setInfoWindowStationId] = useState<string | null>(null);
 
   const center = route
@@ -88,6 +113,7 @@ export function MapView({ route, stations, selectedStationId, onStationSelect, u
           gestureHandling="greedy"
         >
           {route && <RoutePolyline path={route.decodedPath} />}
+          <RouteFit route={route} activeView={activeView} selectedStationId={selectedStationId} />
           <StationFocus stations={stations} selectedStationId={selectedStationId} />
 
           {userPosition && (

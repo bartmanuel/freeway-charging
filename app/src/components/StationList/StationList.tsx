@@ -15,6 +15,10 @@ interface Props {
   amenityMap?: Map<string, Amenity[]>;
 }
 
+function toTitleCase(s: string): string {
+  return s.replace(/(\S+)/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
 function availabilityClass(connector: ConnectorAvailability): string {
   const usable = connector.total - connector.outOfService;
   if (usable === 0) return styles.availNone;
@@ -69,7 +73,9 @@ function SparkChart({ history }: { history: HistoryPoint[] }) {
   return (
     <svg
       width="100%"
+      height={SVG_H}
       viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+      preserveAspectRatio="none"
       className={styles.sparkSvg}
       aria-label="Availability — last 20 minutes"
     >
@@ -191,7 +197,7 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
                 title={station.operator ?? 'Unknown operator'}
               />
               <span className={styles.nameRow}>
-                <span className={styles.name}>{station.name}</span>
+                <span className={styles.name}>{toTitleCase(station.name)}</span>
                 {station.operator && (
                   <span className={styles.nameCpo}>({station.operator})</span>
                 )}
@@ -199,7 +205,10 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
               <div className={styles.rightCol}>
                 <span className={styles.power}>{station.maxPowerKw} kW</span>
                 {isPending && !availability ? (
-                  <span className={`${styles.availCount} ${styles.availPending}`}>•••/?</span>
+                  <span className={`${styles.availCount} ${styles.availPending}`}>
+                    <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
+                    •••/?
+                  </span>
                 ) : availability ? (
                   availability.connectors.map(c => (
                     <span
@@ -207,11 +216,15 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
                       className={`${styles.availCount} ${availabilityClass(c)}`}
                       title={`${c.available} of ${c.total} available`}
                     >
+                      <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
                       {c.available}/{c.total}
                     </span>
                   ))
                 ) : (
-                  <span className={styles.availCount}>?/{station.totalStalls ?? '?'}</span>
+                  <span className={styles.availCount}>
+                    <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
+                    ?/{station.totalStalls ?? '?'}
+                  </span>
                 )}
               </div>
             </div>

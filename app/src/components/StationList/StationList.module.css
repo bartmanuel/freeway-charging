@@ -86,11 +86,13 @@
 }
 
 .availCount {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   font-size: 13px;
   font-weight: 700;
   color: #111827;
   white-space: nowrap;
-  text-align: right;
 }
 
 .passed {
@@ -121,7 +123,6 @@
 .sparkSvg {
   display: block;
   width: 100%;
-  height: auto;
 }
 
 .availText {

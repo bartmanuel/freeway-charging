@@ -1,7 +1,7 @@
 import { Env } from '../types';
 import { redisGet, redisSet } from '../redis';
 import { fetchStationAvailability, StationInput, ConnectorAvailability } from '../tomtom';
-import { insertAvailabilityReading, getRecentHistory, HistoryPoint } from '../supabase';
+import { insertAvailabilityReading, getRecentHistory, ensureStationsExist, HistoryPoint } from '../supabase';
 
 // Matches TomTom's own refresh cadence — no benefit polling more frequently
 const AVAILABILITY_TTL = 180; // 3 minutes
@@ -74,6 +74,12 @@ export async function handleAvailability(req: Request, env: Env): Promise<Respon
   // Cap to the first MAX_STATIONS — they are ordered by distance along route
   // so this always covers the stations the driver will encounter first.
   const capped = stations.slice(0, MAX_STATIONS);
+
+  // Ensure minimal station rows exist before inserting availability readings.
+  // The corridor handler upserts full station data via ctx.waitUntil (background),
+  // so it may not have committed yet when the first availability poll fires.
+  // ensureStationsExist uses ignore-duplicates so it won't overwrite full rows.
+  await ensureStationsExist(env, capped.map(s => ({ id: s.id, name: s.name, lat: s.lat, lng: s.lng }))).catch(() => {});
 
   // Process in small batches with a pause between each to stay within
   // TomTom's rate limit (~5 req/s). Each station costs up to 2 TomTom calls.

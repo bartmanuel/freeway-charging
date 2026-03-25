@@ -102,6 +102,41 @@ export async function getRecentHistory(
   return out;
 }
 
+/**
+ * Ensure a set of minimal station rows exist in the stations table so that
+ * subsequent availability inserts don't hit a FK violation.  Uses
+ * `ignore-duplicates` so fully-populated rows written by the corridor handler
+ * are never overwritten.
+ */
+export async function ensureStationsExist(
+  env: Env,
+  stations: { id: string; name: string; lat: number; lng: number }[],
+): Promise<void> {
+  if (!stations.length) return;
+  const seen = new Set<string>();
+  const unique = stations.filter(s => {
+    if (seen.has(s.id)) return false;
+    seen.add(s.id);
+    return true;
+  });
+  const BATCH = 200;
+  for (let i = 0; i < unique.length; i += BATCH) {
+    const batch = unique.slice(i, i + BATCH).map(s => ({
+      id: s.id, name: s.name, lat: s.lat, lng: s.lng,
+      max_power_kw: 0, connectors: [], address: null, country: null, operator: null, total_stalls: null,
+    }));
+    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/stations`, {
+      method: 'POST',
+      headers: { ...headers(env), Prefer: 'resolution=ignore-duplicates,return=minimal' },
+      body: JSON.stringify(batch),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Supabase ensureStationsExist failed (${res.status}): ${err}`);
+    }
+  }
+}
+
 /** Upsert a batch of stations (merge on id). Duplicates within the batch are deduped first. */
 export async function upsertStations(env: Env, stations: Station[]): Promise<void> {
   if (!stations.length) return;

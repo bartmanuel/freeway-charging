@@ -55,10 +55,11 @@ function barColor(ratio: number): string {
 function SparkChart({ history }: { history: HistoryPoint[] }) {
   if (!history.length) return null;
 
-  const nowMs = Date.now();
+  const nowMinute = Math.floor(Date.now() / 60_000);
   const slots: (number | null)[] = new Array(N_BARS).fill(null);
   for (const pt of history) {
-    const minsAgo = Math.floor((nowMs - new Date(pt.ts).getTime()) / 60_000);
+    const ptMinute = Math.floor(new Date(pt.ts).getTime() / 60_000);
+    const minsAgo = nowMinute - ptMinute;
     if (minsAgo < 0 || minsAgo >= N_BARS) continue;
     const idx = (N_BARS - 1) - minsAgo; // idx 19 = "now", idx 0 = "−19 min"
     if (slots[idx] === null && pt.total > 0) {
@@ -69,6 +70,7 @@ function SparkChart({ history }: { history: HistoryPoint[] }) {
   if (slots.every(s => s === null)) return null;
 
   return (
+
     <>
       <div className={styles.sparkInner}>
         {/* Bars — stretches horizontally, preserveAspectRatio="none" for x-scaling only */}

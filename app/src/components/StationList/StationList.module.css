@@ -53,42 +53,28 @@
   overflow: hidden;
 }
 
+.nameRow {
+  flex: 1;
+  min-width: 0;
+}
+
 .name {
   font-size: 14px;
   font-weight: 600;
   color: #111827;
-  flex: 1;
 }
 
-.power {
-  font-size: 12px;
+.nameCpo {
+  font-size: 13px;
+  font-weight: 400;
+  color: #374151;
+}
+
+.namePower {
+  font-size: 14px;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 12px;
+  color: #111827;
   white-space: nowrap;
-}
-
-.powerHigh {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.powerMid {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-.powerLow {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-.meta {
-  display: flex;
-  gap: 12px;
-  font-size: 12px;
-  color: #6b7280;
-  margin-bottom: 6px;
 }
 
 .passed {
@@ -120,10 +106,10 @@
   margin-bottom: 6px;
 }
 
-.availBadges {
+.availItems {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .sparkSvg {
@@ -131,36 +117,29 @@
   flex-shrink: 0;
 }
 
-.availBadge {
+.availText {
   font-size: 12px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 10px;
+  font-weight: 500;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   white-space: nowrap;
 }
 
-.availGood {
-  background: #dcfce7;
-  color: #15803d;
+.availIcon {
+  width: 13px;
+  height: 13px;
+  opacity: 0.6;
+  flex-shrink: 0;
 }
 
-.availPartial {
-  background: #fef9c3;
-  color: #854d0e;
-}
-
-.availFull {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-.availNone {
-  background: #f3f4f6;
-  color: #6b7280;
-}
+.availGood  { color: #15803d; }
+.availPartial { color: #854d0e; }
+.availFull  { color: #b91c1c; }
+.availNone  { color: #6b7280; }
 
 .availPending {
-  background: #f3f4f6;
   color: #9ca3af;
   animation: pulse 1.2s ease-in-out infinite;
 }

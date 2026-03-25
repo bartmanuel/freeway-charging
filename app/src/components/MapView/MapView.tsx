@@ -162,12 +162,14 @@ export function MapView({ route, stations, selectedStationId, onStationSelect, u
                       title={station.operator ?? 'Unknown operator'}
                     />
                     <div className={styles.infoTitle}>
-                      <strong className={styles.infoName}>{station.name}</strong>
-                      {station.operator && (
-                        <span className={styles.infoOperator}>{station.operator}</span>
-                      )}
+                      <strong className={styles.infoName}>
+                        {station.name}
+                        {station.operator && (
+                          <span className={styles.infoOperator}> ({station.operator})</span>
+                        )}
+                        <span className={styles.infoPower}> · {station.maxPowerKw} kW</span>
+                      </strong>
                     </div>
-                    <span className={styles.infoPower}>{station.maxPowerKw} kW</span>
                   </div>
 
                   {/* Stalls */}
@@ -184,16 +186,17 @@ export function MapView({ route, stations, selectedStationId, onStationSelect, u
                     gapMeters={gapMeters}
                   />
 
-                  {/* Live availability badges */}
+                  {/* Live availability */}
                   {availability && (
                     <div className={styles.infoAvailRow}>
                       {availability.connectors.map(c => (
                         <span
                           key={c.type}
-                          className={`${styles.infoAvailBadge} ${availClass(c)}`}
+                          className={`${styles.infoAvailText} ${availClass(c)}`}
                           title={`${c.available} of ${c.total} available`}
                         >
-                          {c.available}/{c.total} {c.typeLabel}
+                          <img src="/icons/in-app/plug.svg" className={styles.infoAvailIcon} alt="" aria-hidden="true" />
+                          {' '}{c.available} / {c.total} {c.typeLabel}
                         </span>
                       ))}
                     </div>

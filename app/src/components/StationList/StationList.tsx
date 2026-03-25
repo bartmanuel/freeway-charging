@@ -15,12 +15,6 @@ interface Props {
   amenityMap?: Map<string, Amenity[]>;
 }
 
-function powerClass(kw: number): string {
-  if (kw >= 250) return styles.powerHigh;
-  if (kw >= 150) return styles.powerMid;
-  return styles.powerLow;
-}
-
 function availabilityClass(connector: ConnectorAvailability): string {
   const usable = connector.total - connector.outOfService;
   if (usable === 0) return styles.availNone;
@@ -196,13 +190,13 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
                 dangerouslySetInnerHTML={{ __html: getListLogoSvg(station.operator) }}
                 title={station.operator ?? 'Unknown operator'}
               />
-              <span className={styles.name}>{station.name}</span>
-              <span className={`${styles.power} ${powerClass(station.maxPowerKw)}`}>
-                {station.maxPowerKw} kW
+              <span className={styles.nameRow}>
+                <span className={styles.name}>{station.name}</span>
+                {station.operator && (
+                  <span className={styles.nameCpo}> ({station.operator})</span>
+                )}
+                <span className={styles.namePower}> · {station.maxPowerKw} kW</span>
               </span>
-            </div>
-            <div className={styles.meta}>
-              <span>{station.operator ?? 'Unknown operator'}</span>
             </div>
             <DistancePills
               distanceAlongRouteMeters={distanceAlongRouteMeters}
@@ -210,24 +204,27 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
               gapMeters={gapMeters}
             />
             <div className={styles.availRow}>
-              <div className={styles.availBadges}>
+              <div className={styles.availItems}>
                 {isPending && !availability ? (
-                  <span className={`${styles.availBadge} ${styles.availPending}`}>
-                    CCS2 &nbsp;•••
+                  <span className={`${styles.availText} ${styles.availPending}`}>
+                    <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
+                    {' '}••• / ? CCS2
                   </span>
                 ) : availability ? (
                   availability.connectors.map(c => (
                     <span
                       key={c.type}
-                      className={`${styles.availBadge} ${availabilityClass(c)}`}
+                      className={`${styles.availText} ${availabilityClass(c)}`}
                       title={`${c.available} of ${c.total} available`}
                     >
-                      {c.available}/{c.total} {c.typeLabel}
+                      <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
+                      {' '}{c.available} / {c.total} {c.typeLabel}
                     </span>
                   ))
                 ) : (
-                  <span className={`${styles.availBadge} ${styles.availNone}`}>
-                    ?/{station.totalStalls ?? '?'} CCS2
+                  <span className={styles.availText}>
+                    <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
+                    {' '}? / {station.totalStalls ?? '?'} CCS2
                   </span>
                 )}
               </div>

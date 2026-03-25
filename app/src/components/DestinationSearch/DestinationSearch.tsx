@@ -56,7 +56,16 @@ export function DestinationSearch({ onPlaceSelected }: Props) {
       const place = ac.getPlace();
       if (place.geometry) onPlaceSelected(place);
     });
-    return () => listener.remove();
+    // Expose test hook so Playwright smoke tests can bypass the autocomplete dropdown.
+    if (import.meta.env.DEV) {
+      (window as unknown as Record<string, unknown>).__triggerPlaceSelect = onPlaceSelected;
+    }
+    return () => {
+      listener?.remove();
+      if (import.meta.env.DEV) {
+        delete (window as unknown as Record<string, unknown>).__triggerPlaceSelect;
+      }
+    };
   }, [placesLib, onPlaceSelected]);
 
   const isDenied = locationStatus === 'denied' || locationStatus === 'unsupported';

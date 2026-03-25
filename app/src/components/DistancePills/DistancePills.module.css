@@ -1,40 +1,36 @@
 .row {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
-  justify-content: space-between;
   margin-top: 5px;
-}
-
-.pill {
   font-size: 12px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 12px;
+  color: #374151;
+}
+
+.segment {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   white-space: nowrap;
-  letter-spacing: 0.01em;
 }
 
-/* ① Route distance from start — blue */
-.route {
-  background: #2563eb;
-  color: #fff;
+.icon {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  vertical-align: middle;
+  opacity: 0.65;
+  flex-shrink: 0;
 }
 
-/* ② Gap — base class (colour applied by modifier) */
-.gap { /* no base colour — fully determined by modifier */ }
-
-.gapGreen  { background: #dcfce7; color: #15803d; }
-.gapYellow { background: #fef9c3; color: #854d0e; }
-.gapRed    { background: #fee2e2; color: #b91c1c; }
-
-/* ③ Detour */
-.detour {
-  background: #fed7aa;
-  color: #c2410c;
+.arrow {
+  color: #9ca3af;
+  font-size: 11px;
+  line-height: 1;
 }
 
-.noDetour {
-  background: #dcfce7;
-  color: #15803d;
+.divider {
+  color: #d1d5db;
+  user-select: none;
+  flex-shrink: 0;
 }

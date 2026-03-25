@@ -132,10 +132,10 @@ export function App() {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  function handlePlaceSelected(place: google.maps.places.PlaceResult) {
+  const handlePlaceSelected = useCallback((place: google.maps.places.PlaceResult) => {
     setDestinationPlace(place);
     setScreen('confirm');
-  }
+  }, []);
 
   function handleGoNow() {
     if (!position || !destinationPlace) return;

@@ -6,12 +6,6 @@ interface Props {
   gapMeters: number;
 }
 
-function gapPillClass(meters: number): string {
-  if (meters > 120_000) return styles.gapRed;
-  if (meters > 60_000) return styles.gapYellow;
-  return styles.gapGreen;
-}
-
 export function DistancePills({ distanceAlongRouteMeters, detourMeters, gapMeters }: Props) {
   const routeKm = Math.round(distanceAlongRouteMeters / 1000);
   const gapKm   = Math.round(gapMeters / 1000);
@@ -20,26 +14,31 @@ export function DistancePills({ distanceAlongRouteMeters, detourMeters, gapMeter
 
   return (
     <div className={styles.row}>
-      {/* ① Route distance from start — blue, left */}
-      <span className={`${styles.pill} ${styles.route}`}>
-        🚗&thinsp;{routeKm}&thinsp;km&thinsp;⚡
+      {/* ① Route distance from start */}
+      <span className={styles.segment}>
+        <img src="/icons/in-app/car.svg" className={styles.icon} alt="" aria-hidden="true" />
+        <span className={styles.arrow}>›</span>
+        <img src="/icons/in-app/charger.svg" className={styles.icon} alt="" aria-hidden="true" />
+        <span>{routeKm} km</span>
       </span>
 
-      {/* ② Gap from previous station — traffic-light, centre */}
-      <span className={`${styles.pill} ${styles.gap} ${gapPillClass(gapMeters)}`}>
-        ⚡&thinsp;{gapKm}&thinsp;km&thinsp;⚡
+      <span className={styles.divider}>|</span>
+
+      {/* ② Gap from previous station */}
+      <span className={styles.segment}>
+        <img src="/icons/in-app/charger.svg" className={styles.icon} alt="" aria-hidden="true" />
+        <span className={styles.arrow}>›</span>
+        <img src="/icons/in-app/charger.svg" className={styles.icon} alt="" aria-hidden="true" />
+        <span>{gapKm} km</span>
       </span>
 
-      {/* ③ Detour — orange or green, right */}
-      {hasDetour ? (
-        <span className={`${styles.pill} ${styles.detour}`}>
-          ⤷&thinsp;{detourKm}&thinsp;km
-        </span>
-      ) : (
-        <span className={`${styles.pill} ${styles.noDetour}`}>
-          No detour
-        </span>
-      )}
+      <span className={styles.divider}>|</span>
+
+      {/* ③ Detour */}
+      <span className={styles.segment}>
+        <img src="/icons/in-app/detour.svg" className={styles.icon} alt="" aria-hidden="true" />
+        <span>{hasDetour ? `${detourKm} km` : 'on route'}</span>
+      </span>
     </div>
   );
 }

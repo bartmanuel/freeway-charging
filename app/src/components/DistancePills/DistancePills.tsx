@@ -19,7 +19,7 @@ export function DistancePills({ distanceAlongRouteMeters, detourMeters, gapMeter
         <img src="/icons/in-app/car.svg" className={styles.icon} alt="" aria-hidden="true" />
         <span className={styles.arrow}>›</span>
         <img src="/icons/in-app/charger.svg" className={styles.icon} alt="" aria-hidden="true" />
-        <span>{routeKm} km</span>
+        <span className={styles.value}>{routeKm} km</span>
       </span>
 
       <span className={styles.divider}>|</span>
@@ -29,7 +29,7 @@ export function DistancePills({ distanceAlongRouteMeters, detourMeters, gapMeter
         <img src="/icons/in-app/charger.svg" className={styles.icon} alt="" aria-hidden="true" />
         <span className={styles.arrow}>›</span>
         <img src="/icons/in-app/charger.svg" className={styles.icon} alt="" aria-hidden="true" />
-        <span>{gapKm} km</span>
+        <span className={styles.value}>{gapKm} km</span>
       </span>
 
       <span className={styles.divider}>|</span>
@@ -37,7 +37,7 @@ export function DistancePills({ distanceAlongRouteMeters, detourMeters, gapMeter
       {/* ③ Detour */}
       <span className={styles.segment}>
         <img src="/icons/in-app/detour.svg" className={styles.icon} alt="" aria-hidden="true" />
-        <span>{hasDetour ? `${detourKm} km` : 'on route'}</span>
+        <span className={styles.value}>{hasDetour ? `${detourKm} km` : 'on route'}</span>
       </span>
     </div>
   );

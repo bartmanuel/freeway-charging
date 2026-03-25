@@ -1,6 +1,5 @@
 .row {
   display: flex;
-  gap: 6px;
   align-items: center;
   margin-top: 5px;
   font-size: 12px;
@@ -10,8 +9,14 @@
 .segment {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 0;
   white-space: nowrap;
+  flex: 1;
+  justify-content: center;
+}
+
+.value {
+  margin-left: 4px;
 }
 
 .icon {

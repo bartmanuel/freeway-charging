@@ -195,8 +195,8 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
                 {station.operator && (
                   <span className={styles.nameCpo}> ({station.operator})</span>
                 )}
-                <span className={styles.namePower}> · {station.maxPowerKw} kW</span>
               </span>
+              <span className={styles.power}>{station.maxPowerKw} kW</span>
             </div>
             <DistancePills
               distanceAlongRouteMeters={distanceAlongRouteMeters}
@@ -208,7 +208,7 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
                 {isPending && !availability ? (
                   <span className={`${styles.availText} ${styles.availPending}`}>
                     <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
-                    {' '}••• / ? CCS2
+                    {' '}•••/?
                   </span>
                 ) : availability ? (
                   availability.connectors.map(c => (
@@ -218,13 +218,13 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
                       title={`${c.available} of ${c.total} available`}
                     >
                       <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
-                      {' '}{c.available} / {c.total} {c.typeLabel}
+                      {' '}{c.available}/{c.total}
                     </span>
                   ))
                 ) : (
                   <span className={styles.availText}>
                     <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
-                    {' '}? / {station.totalStalls ?? '?'} CCS2
+                    {' '}?/{station.totalStalls ?? '?'}
                   </span>
                 )}
               </div>

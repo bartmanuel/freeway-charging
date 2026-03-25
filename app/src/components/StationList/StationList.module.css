@@ -36,8 +36,7 @@
 
 .header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin-bottom: 4px;
 }
@@ -45,7 +44,7 @@
 .operatorLogo {
   display: inline-flex;
   flex-shrink: 0;
-  align-self: center;
+  align-self: flex-start;
   line-height: 0;
   width: 28px;
   height: 28px;
@@ -70,11 +69,14 @@
   color: #374151;
 }
 
-.namePower {
-  font-size: 14px;
+.power {
+  font-size: 13px;
   font-weight: 700;
   color: #111827;
   white-space: nowrap;
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding-top: 1px;
 }
 
 .passed {

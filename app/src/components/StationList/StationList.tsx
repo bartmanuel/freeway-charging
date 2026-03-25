@@ -197,8 +197,8 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
                 <span className={styles.power}>{station.maxPowerKw} kW</span>
                 {isPending && !availability ? (
                   <span className={`${styles.availCount} ${styles.availPending}`}>
-                    <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
                     •••/?
+                    <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
                   </span>
                 ) : availability ? (
                   availability.connectors.map(c => (
@@ -207,14 +207,14 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
                       className={`${styles.availCount} ${availabilityClass(c)}`}
                       title={`${c.available} of ${c.total} available`}
                     >
-                      <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
                       {c.available}/{c.total}
+                      <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
                     </span>
                   ))
                 ) : (
                   <span className={styles.availCount}>
-                    <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
                     ?/{station.totalStalls ?? '?'}
+                    <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
                   </span>
                 )}
               </div>

@@ -75,11 +75,16 @@ out center;`;
     body: `data=${encodeURIComponent(query)}`,
   });
 
-  // Don't swallow HTTP errors as empty results — let the caller skip caching
-  // so a transient Overpass outage doesn't poison the cache for an hour.
+  // Don't swallow HTTP errors — let the caller skip caching.
   if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
 
   const data = await res.json() as OverpassResponse;
+
+  // Overpass returns 200 with an empty elements array and a "remark" field
+  // when the query times out server-side. Treat that as a transient error too.
+  if ((data as unknown as { remark?: string }).remark?.includes('timed out')) {
+    throw new Error('Overpass query timed out');
+  }
   const seen = new Set<string>();
   const results: AmenityItem[] = [];
 

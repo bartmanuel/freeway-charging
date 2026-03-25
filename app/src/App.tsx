@@ -237,8 +237,17 @@ export function App() {
               {routeQuery.data && (
                 <div className={styles.routeMeta}>
                   <span>{(routeQuery.data.distanceMeters / 1000).toFixed(0)} km</span>
-                  <span>{formatDuration(routeQuery.data.durationSeconds)}</span>
-                  {stationsQuery.data && <span>{stationsQuery.data.length} stations</span>}
+                  <span className={styles.routeMetaDivider}>|</span>
+                  <span>{formatDuration(routeQuery.data.durationSeconds)}h</span>
+                  {stationsQuery.data && (
+                    <>
+                      <span className={styles.routeMetaDivider}>|</span>
+                      <span>
+                        {stationsQuery.data.length}
+                        <img src="/icons/in-app/charger.svg" className={styles.routeMetaIcon} alt="chargers" />
+                      </span>
+                    </>
+                  )}
                 </div>
               )}
               <div className={styles.tripControls}>

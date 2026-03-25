@@ -88,8 +88,8 @@ test.describe('LetsJustDrive — smoke tests', () => {
     const count = await stationList.count();
     expect(count).toBeGreaterThan(0);
 
-    // Route meta should show station count
-    await expect(page.locator(`text=/\\d+ stations/`)).toBeVisible({ timeout: 5000 });
+    // Route meta should show station count (number + charger icon)
+    await expect(page.locator('[class*="routeMeta"] img[src*="charger"]')).toBeVisible({ timeout: 5000 });
   });
 
   test('availability badges appear after station list loads', async ({ page }) => {

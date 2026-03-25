@@ -129,6 +129,7 @@
 .sparkInner {
   display: flex;
   width: 100%;
+  padding-left: 26px; /* balance the 26px y-axis on the right */
 }
 
 .sparkBarSvg {
@@ -144,7 +145,8 @@
 .sparkTimes {
   display: flex;
   justify-content: space-between;
-  padding-right: 26px; /* keep aligned with bar area, not under axis */
+  padding-left: 26px;  /* align with bar left edge */
+  padding-right: 26px; /* align with bar right edge (axis width) */
   font-size: 7px;
   line-height: 1;
   color: #9ca3af;

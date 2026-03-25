@@ -52,10 +52,13 @@ function barColor(ratio: number): string {
   return '#dc2626';                    // red
 }
 
-function SparkChart({ history }: { history: HistoryPoint[] }) {
+function SparkChart({ history, fetchedAt }: { history: HistoryPoint[]; fetchedAt: string }) {
   if (!history.length) return null;
 
-  const nowMinute = Math.floor(Date.now() / 60_000);
+  // Use the poll timestamp (client-side, captured when data arrived) as the clock.
+  // If we used Date.now() the countdown re-renders every second would shift bars
+  // at minute boundaries between polls.
+  const nowMinute = Math.floor(new Date(fetchedAt).getTime() / 60_000);
   const slots: (number | null)[] = new Array(N_BARS).fill(null);
   for (const pt of history) {
     const ptMinute = Math.floor(new Date(pt.ts).getTime() / 60_000);
@@ -226,7 +229,7 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
             />
             {(availability?.history?.length ?? 0) > 0 && (
               <div className={styles.sparkRow}>
-                <SparkChart history={availability!.history} />
+                <SparkChart history={availability!.history} fetchedAt={availability!.fetchedAt} />
               </div>
             )}
             {amenities.length > 0 && <AmenityPills amenities={amenities} />}

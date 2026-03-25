@@ -99,8 +99,8 @@ test.describe('LetsJustDrive — smoke tests', () => {
     // Wait for stations to load first
     await page.locator('aside ul li').first().waitFor({ timeout: 45000 });
 
-    // Availability text (pending or resolved) should appear within 30 s.
-    const badge = page.locator('[class*="availText"]').first();
+    // Availability count (pending or resolved) should appear within 30 s.
+    const badge = page.locator('[class*="availCount"]').first();
     await expect(badge).toBeVisible({ timeout: 30000 });
   });
 

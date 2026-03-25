@@ -64,9 +64,18 @@
 }
 
 .nameCpo {
+  display: block;
   font-size: 13px;
   font-weight: 400;
   color: #374151;
+}
+
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  gap: 2px;
 }
 
 .power {
@@ -74,9 +83,14 @@
   font-weight: 700;
   color: #111827;
   white-space: nowrap;
-  flex-shrink: 0;
-  align-self: flex-start;
-  padding-top: 1px;
+}
+
+.availCount {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .passed {
@@ -99,24 +113,15 @@
   letter-spacing: 0.01em;
 }
 
-.availRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
+.sparkRow {
   margin-top: 6px;
-  margin-bottom: 6px;
-}
-
-.availItems {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  width: 100%;
 }
 
 .sparkSvg {
   display: block;
-  flex-shrink: 0;
+  width: 100%;
+  height: auto;
 }
 
 .availText {

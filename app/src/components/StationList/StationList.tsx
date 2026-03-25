@@ -68,8 +68,8 @@ function SparkChart({ history }: { history: HistoryPoint[] }) {
 
   return (
     <svg
-      width={SVG_W}
-      height={SVG_H}
+      width="100%"
+      viewBox={`0 0 ${SVG_W} ${SVG_H}`}
       className={styles.sparkSvg}
       aria-label="Availability — last 20 minutes"
     >
@@ -193,43 +193,38 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
               <span className={styles.nameRow}>
                 <span className={styles.name}>{station.name}</span>
                 {station.operator && (
-                  <span className={styles.nameCpo}> ({station.operator})</span>
+                  <span className={styles.nameCpo}>({station.operator})</span>
                 )}
               </span>
-              <span className={styles.power}>{station.maxPowerKw} kW</span>
+              <div className={styles.rightCol}>
+                <span className={styles.power}>{station.maxPowerKw} kW</span>
+                {isPending && !availability ? (
+                  <span className={`${styles.availCount} ${styles.availPending}`}>•••/?</span>
+                ) : availability ? (
+                  availability.connectors.map(c => (
+                    <span
+                      key={c.type}
+                      className={`${styles.availCount} ${availabilityClass(c)}`}
+                      title={`${c.available} of ${c.total} available`}
+                    >
+                      {c.available}/{c.total}
+                    </span>
+                  ))
+                ) : (
+                  <span className={styles.availCount}>?/{station.totalStalls ?? '?'}</span>
+                )}
+              </div>
             </div>
             <DistancePills
               distanceAlongRouteMeters={distanceAlongRouteMeters}
               detourMeters={detourMeters}
               gapMeters={gapMeters}
             />
-            <div className={styles.availRow}>
-              <div className={styles.availItems}>
-                {isPending && !availability ? (
-                  <span className={`${styles.availText} ${styles.availPending}`}>
-                    <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
-                    {' '}•••/?
-                  </span>
-                ) : availability ? (
-                  availability.connectors.map(c => (
-                    <span
-                      key={c.type}
-                      className={`${styles.availText} ${availabilityClass(c)}`}
-                      title={`${c.available} of ${c.total} available`}
-                    >
-                      <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
-                      {' '}{c.available}/{c.total}
-                    </span>
-                  ))
-                ) : (
-                  <span className={styles.availText}>
-                    <img src="/icons/in-app/plug.svg" className={styles.availIcon} alt="" aria-hidden="true" />
-                    {' '}?/{station.totalStalls ?? '?'}
-                  </span>
-                )}
+            {(availability?.history?.length ?? 0) > 0 && (
+              <div className={styles.sparkRow}>
+                <SparkChart history={availability!.history} />
               </div>
-              <SparkChart history={availability?.history ?? []} />
-            </div>
+            )}
             {amenities.length > 0 && <AmenityPills amenities={amenities} />}
           </li>
         );

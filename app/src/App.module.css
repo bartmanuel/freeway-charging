@@ -19,14 +19,27 @@
   overflow-y: auto;
 }
 
-/* Wrapper for the scrollable content inside the sidebar.
-   The slot-machine animation translates this element to simulate
-   the list "spinning" inside the clipped thumbnail. */
+/* Wrapper that replicates the sidebar's own flex layout.
+   In thumbnail mode it is scaled down to fit the 110 px clip window. */
 .slotContent {
   display: flex;
   flex-direction: column;
   gap: 12px;
   flex-shrink: 0;
+}
+
+/* Scale the list view to fill the thumbnail. The sidebar is 360 px wide;
+   the thumbnail clip window is 110 px → scale = 110/360 ≈ 0.306.
+   transform-origin: top left anchors it to the top-left corner of the thumbnail. */
+.sidebar.thumbnailMobile {
+  padding: 0;
+}
+
+.sidebar.thumbnailMobile .slotContent {
+  width: 360px;
+  padding: 16px;
+  transform: scale(calc(110 / 360));
+  transform-origin: top left;
 }
 
 .header {

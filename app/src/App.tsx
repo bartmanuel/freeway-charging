@@ -43,9 +43,6 @@ export function App() {
     elemX: number;  elemY: number;
     isDragging: boolean;
   } | null>(null);
-  const sidebarRef = useRef<HTMLElement>(null);
-  const slotContentRef = useRef<HTMLDivElement>(null);
-  const slotRafRef = useRef<number | null>(null);
 
   // Location tracking
   const [userProjection, setUserProjection] = useState<RouteProjection | null>(null);
@@ -142,53 +139,6 @@ export function App() {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  // ── Slot-machine animation on list thumbnail when switching to map ────────
-  // We use transform: translateY on an inner wrapper rather than scrollTop on
-  // the aside, because scrollTop is measured against clientHeight which still
-  // reflects the full-viewport height at the time the effect runs (the CSS
-  // thumbnailMobile layout hasn't been committed to a reflow yet).
-  useEffect(() => {
-    const contentEl = slotContentRef.current;
-    if (!contentEl) return;
-
-    if (activeView !== 'map') {
-      contentEl.style.transform = '';
-      return;
-    }
-    if (window.innerWidth > 640) return;
-
-    // offsetHeight = full rendered height of the content div; THUMB_H = 164
-    const contentH = contentEl.offsetHeight;
-    const maxOffset = Math.max(0, contentH - THUMB_H);
-    if (maxOffset <= 0) return;
-
-    const targetOffset = Math.floor(Math.random() * maxOffset);
-    const duration = 900;
-    const start = performance.now();
-    const easeOut = (t: number) => 1 - (1 - t) ** 2;
-    const node = contentEl; // capture non-null for TS inside tick
-
-    function tick(now: number) {
-      const t = Math.min((now - start) / duration, 1);
-      // Decaying oscillation (3 spins) layered over an ease-out drift to target
-      const decay = (1 - t) * (1 - t);
-      const osc = Math.sin(t * 3 * 2 * Math.PI) * decay * maxOffset * 0.45;
-      const offset = Math.max(0, Math.min(maxOffset, targetOffset * easeOut(t) + osc));
-      node.style.transform = `translateY(-${offset}px)`;
-      if (t < 1) {
-        slotRafRef.current = requestAnimationFrame(tick);
-      } else {
-        node.style.transform = `translateY(-${targetOffset}px)`;
-      }
-    }
-
-    slotRafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (slotRafRef.current) cancelAnimationFrame(slotRafRef.current);
-    };
-  }, [activeView]);
-  // ─────────────────────────────────────────────────────────────────────────
-
   const handlePlaceSelected = useCallback((place: google.maps.places.PlaceResult) => {
     setDestinationPlace(place);
     setScreen('confirm');
@@ -274,14 +224,13 @@ export function App() {
       {screen === 'trip' && (
         <div className={styles.layout}>
           <aside
-            ref={sidebarRef}
             className={sidebarClass}
             style={activeView === 'map' && thumbPos ? { left: thumbPos.x, top: thumbPos.y, right: 'auto', bottom: 'auto' } : undefined}
             onPointerDown={activeView === 'map' ? handleThumbPointerDown : undefined}
             onPointerMove={activeView === 'map' ? handleThumbPointerMove : undefined}
             onPointerUp={activeView === 'map' ? (e) => handleThumbPointerUp(e, 'list') : undefined}
           >
-            <div ref={slotContentRef} className={styles.slotContent}>
+            <div className={styles.slotContent}>
             <header className={styles.header}>
               <h1 className={styles.title}>
                 let's just drive{destinationPlace ? ` to ${destinationPlace.name}` : ''}

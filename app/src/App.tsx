@@ -43,6 +43,8 @@ export function App() {
     elemX: number;  elemY: number;
     isDragging: boolean;
   } | null>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const slotRafRef = useRef<number | null>(null);
 
   // Location tracking
   const [userProjection, setUserProjection] = useState<RouteProjection | null>(null);
@@ -139,6 +141,44 @@ export function App() {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── Slot-machine animation on list thumbnail when switching to map ────────
+  useEffect(() => {
+    if (activeView !== 'map') return;
+    if (window.innerWidth > 640) return;
+    const el = sidebarRef.current;
+    if (!el) return;
+
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    if (maxScroll <= 0) return;
+
+    const targetScroll = Math.floor(Math.random() * maxScroll);
+    const duration = 900;
+    const start = performance.now();
+    const startScroll = el.scrollTop;
+    const easeOut = (t: number) => 1 - (1 - t) ** 2;
+    const node = el; // capture so TS keeps the non-null narrowing inside tick
+
+    function tick(now: number) {
+      const t = Math.min((now - start) / duration, 1);
+      // Decaying oscillation (3 spins) layered over an ease-out drift to target
+      const decay = (1 - t) * (1 - t);
+      const osc = Math.sin(t * 3 * 2 * Math.PI) * decay * maxScroll * 0.45;
+      const base = startScroll + (targetScroll - startScroll) * easeOut(t);
+      node.scrollTop = Math.max(0, Math.min(maxScroll, base + osc));
+      if (t < 1) {
+        slotRafRef.current = requestAnimationFrame(tick);
+      } else {
+        node.scrollTop = targetScroll;
+      }
+    }
+
+    slotRafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (slotRafRef.current) cancelAnimationFrame(slotRafRef.current);
+    };
+  }, [activeView]);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const handlePlaceSelected = useCallback((place: google.maps.places.PlaceResult) => {
     setDestinationPlace(place);
     setScreen('confirm');
@@ -224,6 +264,7 @@ export function App() {
       {screen === 'trip' && (
         <div className={styles.layout}>
           <aside
+            ref={sidebarRef}
             className={sidebarClass}
             style={activeView === 'map' && thumbPos ? { left: thumbPos.x, top: thumbPos.y, right: 'auto', bottom: 'auto' } : undefined}
             onPointerDown={activeView === 'map' ? handleThumbPointerDown : undefined}

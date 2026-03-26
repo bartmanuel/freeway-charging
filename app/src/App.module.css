@@ -13,11 +13,20 @@
   min-width: 360px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
   padding: 16px;
   background: #f9fafb;
   border-right: 1px solid #e5e7eb;
   overflow-y: auto;
+}
+
+/* Wrapper for the scrollable content inside the sidebar.
+   The slot-machine animation translates this element to simulate
+   the list "spinning" inside the clipped thumbnail. */
+.slotContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .header {

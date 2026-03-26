@@ -44,6 +44,7 @@ export function App() {
     isDragging: boolean;
   } | null>(null);
   const sidebarRef = useRef<HTMLElement>(null);
+  const slotContentRef = useRef<HTMLDivElement>(null);
   const slotRafRef = useRef<number | null>(null);
 
   // Location tracking
@@ -142,33 +143,42 @@ export function App() {
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── Slot-machine animation on list thumbnail when switching to map ────────
+  // We use transform: translateY on an inner wrapper rather than scrollTop on
+  // the aside, because scrollTop is measured against clientHeight which still
+  // reflects the full-viewport height at the time the effect runs (the CSS
+  // thumbnailMobile layout hasn't been committed to a reflow yet).
   useEffect(() => {
-    if (activeView !== 'map') return;
+    const contentEl = slotContentRef.current;
+    if (!contentEl) return;
+
+    if (activeView !== 'map') {
+      contentEl.style.transform = '';
+      return;
+    }
     if (window.innerWidth > 640) return;
-    const el = sidebarRef.current;
-    if (!el) return;
 
-    const maxScroll = el.scrollHeight - el.clientHeight;
-    if (maxScroll <= 0) return;
+    // offsetHeight = full rendered height of the content div; THUMB_H = 164
+    const contentH = contentEl.offsetHeight;
+    const maxOffset = Math.max(0, contentH - THUMB_H);
+    if (maxOffset <= 0) return;
 
-    const targetScroll = Math.floor(Math.random() * maxScroll);
+    const targetOffset = Math.floor(Math.random() * maxOffset);
     const duration = 900;
     const start = performance.now();
-    const startScroll = el.scrollTop;
     const easeOut = (t: number) => 1 - (1 - t) ** 2;
-    const node = el; // capture so TS keeps the non-null narrowing inside tick
+    const node = contentEl; // capture non-null for TS inside tick
 
     function tick(now: number) {
       const t = Math.min((now - start) / duration, 1);
       // Decaying oscillation (3 spins) layered over an ease-out drift to target
       const decay = (1 - t) * (1 - t);
-      const osc = Math.sin(t * 3 * 2 * Math.PI) * decay * maxScroll * 0.45;
-      const base = startScroll + (targetScroll - startScroll) * easeOut(t);
-      node.scrollTop = Math.max(0, Math.min(maxScroll, base + osc));
+      const osc = Math.sin(t * 3 * 2 * Math.PI) * decay * maxOffset * 0.45;
+      const offset = Math.max(0, Math.min(maxOffset, targetOffset * easeOut(t) + osc));
+      node.style.transform = `translateY(-${offset}px)`;
       if (t < 1) {
         slotRafRef.current = requestAnimationFrame(tick);
       } else {
-        node.scrollTop = targetScroll;
+        node.style.transform = `translateY(-${targetOffset}px)`;
       }
     }
 
@@ -271,6 +281,7 @@ export function App() {
             onPointerMove={activeView === 'map' ? handleThumbPointerMove : undefined}
             onPointerUp={activeView === 'map' ? (e) => handleThumbPointerUp(e, 'list') : undefined}
           >
+            <div ref={slotContentRef} className={styles.slotContent}>
             <header className={styles.header}>
               <h1 className={styles.title}>
                 let's just drive{destinationPlace ? ` to ${destinationPlace.name}` : ''}
@@ -344,6 +355,8 @@ export function App() {
                 />
               </>
             )}
+
+            </div>{/* end slotContent */}
 
             {/* Thumbnail label — only visible on mobile when this view is inactive */}
             <div className={styles.thumbnailLabel}>List</div>

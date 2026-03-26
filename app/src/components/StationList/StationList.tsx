@@ -55,11 +55,14 @@ function barColor(ratio: number): string {
 function SparkChart({ history }: { history: HistoryPoint[] }) {
   if (!history.length) return null;
 
-  // Use the newest reading's own timestamp as the reference "now".
-  // This is fully clock-agnostic: no dependency on Date.now(), fetchedAt,
-  // or Worker vs Supabase clock alignment. history[0] is always the most
-  // recent DB row (ORDER BY sampled_at DESC), so it always lands at slot 19.
-  const nowMinute = Math.floor(new Date(history[0].ts).getTime() / 60_000);
+  // Use the real client clock so bars shift at a 1-min cadence that matches
+  // actual time, not poll timing. Using history[0].ts (the last poll timestamp)
+  // caused nowMinute to jump forward by however many minutes a slow or delayed
+  // poll took, instantly pushing old bars outside the 20-min window and making
+  // them disappear from all charts simultaneously.
+  // Math.floor(Date.now() / 60_000) only changes once per minute, so
+  // per-second re-renders from the countdown timer have no visible effect.
+  const nowMinute = Math.floor(Date.now() / 60_000);
   const slots: (number | null)[] = new Array(N_BARS).fill(null);
   for (const pt of history) {
     const ptMinute = Math.floor(new Date(pt.ts).getTime() / 60_000);

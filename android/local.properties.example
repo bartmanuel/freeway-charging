@@ -1,0 +1,7 @@
+# Copy this file to local.properties and fill in your keys.
+# local.properties is gitignored and never committed.
+
+# Google Maps Platform API key.
+# Required APIs: Places API (for autocomplete in SearchTemplate).
+# Create or manage keys at: https://console.cloud.google.com/google/maps-apis/credentials
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here

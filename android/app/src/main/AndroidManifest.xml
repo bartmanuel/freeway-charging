@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Location: needed to determine the user's starting point -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+        Declare Android Auto support as optional so the APK can be installed on
+        any Android phone. Android Auto itself is phone-side (projection), so the
+        feature is never "required" for the APK to install.
+    -->
+    <uses-feature android:name="android.hardware.type.AUTOMOTIVE" android:required="false" />
+
+    <application
+        android:label="@string/app_name"
+        android:allowBackup="false"
+        android:supportsRtl="true">
+
+        <!--
+            CarAppService — entry point for the Android Auto template UI.
+
+            The intent-filter action marks this service as a Car App.
+            The category tells the Android Auto host this is an EV charging app
+            (androidx.car.app.category.CHARGING, supported since Car App API level 1).
+
+            minCarApiLevel=2 is required for PlaceListMapTemplate.
+        -->
+        <service
+            android:name=".FreewayCarAppService"
+            android:exported="true"
+            android:label="@string/app_name">
+
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <category android:name="androidx.car.app.category.CHARGING" />
+            </intent-filter>
+
+            <!-- Minimum Car App API level this service supports -->
+            <meta-data
+                android:name="androidx.car.app.minCarApiLevel"
+                android:value="2" />
+        </service>
+
+        <!--
+            Tells the Android Auto host that this app uses template rendering
+            (as opposed to a custom surface / MediaSession).
+        -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
+    </application>
+</manifest>

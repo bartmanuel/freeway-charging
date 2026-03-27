@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Declares that this app uses the Car App Library template renderer,
+    not a custom surface or MediaSession.
+-->
+<automotiveApp>
+    <uses name="template" />
+</automotiveApp>

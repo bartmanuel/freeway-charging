@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
+import { LocationOnboarding } from './components/LocationOnboarding/LocationOnboarding';
 import { DestinationSearch } from './components/DestinationSearch/DestinationSearch';
 import { DestinationConfirm } from './components/DestinationConfirm/DestinationConfirm';
 import { StationList } from './components/StationList/StationList';
@@ -28,10 +29,10 @@ function formatDuration(seconds: number): string {
   return `${h}:${m.toString().padStart(2, '0')}`;
 }
 
-type Screen = 'start' | 'confirm' | 'trip';
+type Screen = 'onboarding' | 'start' | 'confirm' | 'trip';
 
 export function App() {
-  const [screen, setScreen] = useState<Screen>('start');
+  const [screen, setScreen] = useState<Screen>('onboarding');
   const [destinationPlace, setDestinationPlace] = useState<google.maps.places.PlaceResult | null>(null);
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
@@ -63,7 +64,7 @@ export function App() {
     selectedStationId,
   );
   const amenityMap = useAmenities(stationsQuery.data ?? []);
-  const { position, permissionState } = useGeolocation(screen !== 'start');
+  const { position, permissionState } = useGeolocation(screen === 'confirm' || screen === 'trip');
 
   // Project user position onto route whenever GPS updates
   const decodedPath = routeQuery.data?.decodedPath;
@@ -139,6 +140,8 @@ export function App() {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
+  const handleOnboardingGranted = useCallback(() => setScreen('start'), []);
+
   const handlePlaceSelected = useCallback((place: google.maps.places.PlaceResult) => {
     setDestinationPlace(place);
     setScreen('confirm');
@@ -207,6 +210,10 @@ export function App() {
 
   return (
     <APIProvider apiKey={GOOGLE_API_KEY}>
+      {screen === 'onboarding' && (
+        <LocationOnboarding onGranted={handleOnboardingGranted} />
+      )}
+
       {screen === 'start' && (
         <DestinationSearch onPlaceSelected={handlePlaceSelected} />
       )}

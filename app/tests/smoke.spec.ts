@@ -10,6 +10,13 @@ async function grantGeolocation(page: import('@playwright/test').Page) {
   await page.context().setGeolocation({ latitude: 52.3702, longitude: 4.8952 });
 }
 
+// Pre-grant geolocation before every test so the app skips the LocationOnboarding
+// screen and starts directly on the destination input screen.
+test.beforeEach(async ({ page }) => {
+  await page.context().grantPermissions(['geolocation']);
+  await page.context().setGeolocation({ latitude: 52.3702, longitude: 4.8952 });
+});
+
 // Navigate the new start → confirm → trip flow.
 // Types a destination, waits for the Google Places dropdown (falls back to a DEV test hook
 // if autocomplete suggestions don't appear — Google Places blocks headless Chromium requests),

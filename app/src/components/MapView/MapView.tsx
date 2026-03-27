@@ -46,7 +46,11 @@ function RouteFit({
 
   useEffect(() => {
     if (!map || !coreLib || !route || route.decodedPath.length < 2) return;
-    if (selectedStationId) return; // don't override station focus
+    // In map view with a selected station, defer to StationFocus so we don't
+    // zoom back out immediately after the user tapped a station.
+    // In list view (map is a thumbnail) always fit the route, even if a station
+    // is still selected — the thumbnail should always show the full route overview.
+    if (activeView === 'map' && selectedStationId) return;
     const bounds = new coreLib.LatLngBounds();
     for (const pt of route.decodedPath) bounds.extend(pt);
     map.fitBounds(bounds, 40);

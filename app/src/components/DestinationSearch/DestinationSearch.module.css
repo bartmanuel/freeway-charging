@@ -104,3 +104,65 @@
   text-align: center;
   padding: 6px 0;
 }
+
+/* ── Inline destination confirmation ─────────────────────────────────────── */
+
+/* Groups the input + expandable section as a single flex item in the card */
+.inputSection {
+  display: flex;
+  flex-direction: column;
+}
+
+/* CSS Grid trick for smooth height: 0 → auto animation */
+.expandSection {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease;
+}
+
+.expandSection.expandOpen {
+  grid-template-rows: 1fr;
+}
+
+/* overflow: hidden clips the content while collapsed */
+.expandInner {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+}
+
+.minimap {
+  height: 200px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid #e5e7eb;
+}
+
+/* Ensure the Google Maps div fills the minimap container */
+.minimap > div {
+  height: 100%;
+}
+
+.goButton {
+  width: 100%;
+  height: 48px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.goButton:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.goButton:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}

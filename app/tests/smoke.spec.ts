@@ -44,8 +44,8 @@ async function navigateToTrip(page: import('@playwright/test').Page, destination
     }, destination);
   }
 
-  // Confirm screen: wait for Go now to become enabled (position arrives) then click.
-  const goBtn = page.getByRole('button', { name: /go now/i });
+  // Expanded card: wait for "let's go" to become enabled (position arrives) then click.
+  const goBtn = page.getByRole('button', { name: /let's go/i });
   await expect(goBtn).toBeEnabled({ timeout: 10000 });
   await goBtn.click();
 }
@@ -54,13 +54,12 @@ test.describe('LetsJustDrive — smoke tests', () => {
   test('start screen loads with title and destination input', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('heading', { name: "let's just drive" })).toBeVisible();
-    await expect(page.getByPlaceholder('Where do we go now?')).toBeVisible();
+    await expect(page.getByPlaceholder('where do we go now?')).toBeVisible();
   });
 
-  test('confirm screen shows map and Go now button', async ({ page }) => {
+  test('destination selected expands card with minimap and lets go button', async ({ page }) => {
     await page.goto('/');
-    await grantGeolocation(page);
-    const input = page.getByPlaceholder('Where do we go now?');
+    const input = page.getByPlaceholder('where do we go now?');
     await input.click();
     await input.pressSequentially('Eindhoven', { delay: 100 });
     const pacVisible = await page.locator('.pac-item').first().isVisible().catch(() => false);
@@ -73,10 +72,10 @@ test.describe('LetsJustDrive — smoke tests', () => {
         trigger({ name: 'Eindhoven', formatted_address: 'Eindhoven, Netherlands', geometry: { location: { lat: () => 51.4416, lng: () => 5.4697 } } });
       });
     }
-    // Confirm screen should appear with the Go now button and the map preview container.
+    // Card should expand with the minimap and "let's go" button.
     // (Don't wait for .gm-style — Google Maps tiles never load in headless Chromium.)
-    await expect(page.getByRole('button', { name: /go now/i })).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('[class*="mapPreview"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('button', { name: /let's go/i })).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[class*="minimap"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('route search returns stations', async ({ page }) => {
@@ -124,7 +123,7 @@ test.describe('LetsJustDrive — smoke tests', () => {
     const stopBtn = page.getByRole('button', { name: 'Stop' });
     await stopBtn.waitFor({ timeout: 10000 });
     await stopBtn.click();
-    await expect(page.getByPlaceholder('Where do we go now?')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByPlaceholder('where do we go now?')).toBeVisible({ timeout: 10000 });
   });
 
   test('selecting a station from the list pans the map', async ({ page }) => {

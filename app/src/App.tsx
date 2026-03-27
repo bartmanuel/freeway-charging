@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { LocationOnboarding } from './components/LocationOnboarding/LocationOnboarding';
 import { DestinationSearch } from './components/DestinationSearch/DestinationSearch';
-import { DestinationConfirm } from './components/DestinationConfirm/DestinationConfirm';
 import { StationList } from './components/StationList/StationList';
 import { MapView } from './components/MapView/MapView';
 import { useRoute } from './hooks/useRoute';
@@ -29,7 +28,7 @@ function formatDuration(seconds: number): string {
   return `${h}:${m.toString().padStart(2, '0')}`;
 }
 
-type Screen = 'onboarding' | 'start' | 'confirm' | 'trip';
+type Screen = 'onboarding' | 'start' | 'trip';
 
 export function App() {
   const [screen, setScreen] = useState<Screen>('onboarding');
@@ -64,7 +63,9 @@ export function App() {
     selectedStationId,
   );
   const amenityMap = useAmenities(stationsQuery.data ?? []);
-  const { position, permissionState } = useGeolocation(screen === 'confirm' || screen === 'trip');
+  // Start geolocation as soon as the user reaches the start screen so the blue
+  // dot is already warm by the time they pick a destination.
+  const { position, permissionState } = useGeolocation(screen === 'start' || screen === 'trip');
 
   // Project user position onto route whenever GPS updates
   const decodedPath = routeQuery.data?.decodedPath;
@@ -142,19 +143,15 @@ export function App() {
 
   const handleOnboardingGranted = useCallback(() => setScreen('start'), []);
 
-  const handlePlaceSelected = useCallback((place: google.maps.places.PlaceResult) => {
-    setDestinationPlace(place);
-    setScreen('confirm');
-  }, []);
-
-  function handleGoNow() {
-    if (!position || !destinationPlace) return;
+  const handleConfirm = useCallback((place: google.maps.places.PlaceResult) => {
+    if (!position) return;
     const { latitude, longitude } = position;
     setOrigin(`${latitude.toFixed(6)},${longitude.toFixed(6)}`);
-    setDestination(destinationPlace.formatted_address ?? destinationPlace.name ?? '');
+    setDestination(place.formatted_address ?? place.name ?? '');
+    setDestinationPlace(place);
     setSelectedStationId(null);
     setScreen('trip');
-  }
+  }, [position]);
 
   const handleReroute = useCallback(() => {
     if (!position) return;
@@ -215,16 +212,10 @@ export function App() {
       )}
 
       {screen === 'start' && (
-        <DestinationSearch onPlaceSelected={handlePlaceSelected} />
-      )}
-
-      {screen === 'confirm' && destinationPlace && (
-        <DestinationConfirm
-          place={destinationPlace}
+        <DestinationSearch
+          onConfirm={handleConfirm}
           position={position}
           permissionState={permissionState}
-          onConfirm={handleGoNow}
-          onBack={() => setScreen('start')}
         />
       )}
 

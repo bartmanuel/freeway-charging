@@ -28,19 +28,6 @@
   flex-shrink: 0;
 }
 
-/* Scale the list view to fill the thumbnail. The sidebar is 360 px wide;
-   the thumbnail clip window is 110 px → scale = 110/360 ≈ 0.306.
-   transform-origin: top left anchors it to the top-left corner of the thumbnail. */
-.sidebar.thumbnailMobile {
-  padding: 0;
-}
-
-.sidebar.thumbnailMobile .slotContent {
-  width: 360px;
-  padding: 16px;
-  transform: scale(calc(110 / 360));
-  transform-origin: top left;
-}
 
 .header {
   padding-bottom: 4px;
@@ -260,6 +247,20 @@
   .sidebar.thumbnailMobile > *,
   .mapArea.thumbnailMobile > * {
     pointer-events: none;
+  }
+
+  /* Scale the list view to fill the thumbnail. The sidebar is 360 px wide;
+     the thumbnail clip window is 110 px → scale = 110/360 ≈ 0.306.
+     transform-origin: top left anchors it to the top-left corner of the thumbnail. */
+  .sidebar.thumbnailMobile {
+    padding: 0;
+  }
+
+  .sidebar.thumbnailMobile .slotContent {
+    width: 360px;
+    padding: 16px;
+    transform: scale(calc(110 / 360));
+    transform-origin: top left;
   }
 
   /* Show the label at the bottom of the thumbnail */

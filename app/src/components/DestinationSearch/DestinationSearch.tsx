@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMapsLibrary, Map, Marker, useMap } from '@vis.gl/react-google-maps';
 import type { PermissionState } from '../../hooks/useGeolocation';
 import styles from './DestinationSearch.module.css';
 
 // Fits the minimap to show both the user's current position and the destination.
+// Uses requestAnimationFrame so Google Maps processes the container size before
+// computing the bounds fit.
 function MinimapFit({
   userPos,
   destPos,
@@ -14,13 +16,18 @@ function MinimapFit({
   const map = useMap();
   const coreLib = useMapsLibrary('core');
 
-  useEffect(() => {
+  const doFit = useCallback(() => {
     if (!map || !coreLib) return;
     const bounds = new coreLib.LatLngBounds();
     if (userPos) bounds.extend(userPos);
     bounds.extend(destPos);
     map.fitBounds(bounds, 40);
   }, [map, coreLib, userPos, destPos]);
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(doFit);
+    return () => cancelAnimationFrame(raf);
+  }, [doFit]);
 
   return null;
 }
@@ -87,6 +94,15 @@ export function DestinationSearch({ onConfirm, position, permissionState }: Prop
 
   const isExpanded = selectedPlace !== null;
 
+  // Delay rendering the Map until after the expand CSS transition (300ms) so
+  // Google Maps initialises in a correctly-sized container, not a 0-height one.
+  const [mapReady, setMapReady] = useState(false);
+  useEffect(() => {
+    if (!selectedPlace) { setMapReady(false); return; }
+    const t = setTimeout(() => setMapReady(true), 320);
+    return () => clearTimeout(t);
+  }, [selectedPlace]);
+
   return (
     <div className={styles.screen}>
       <div className={styles.card}>
@@ -110,7 +126,7 @@ export function DestinationSearch({ onConfirm, position, permissionState }: Prop
           {/* Expands below the input when a destination is selected */}
           <div className={`${styles.expandSection} ${isExpanded ? styles.expandOpen : ''}`}>
             <div className={styles.expandInner}>
-              {destPos && (
+              {destPos && mapReady && (
                 <div className={styles.minimap}>
                   <Map
                     defaultCenter={destPos}

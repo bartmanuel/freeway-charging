@@ -322,6 +322,7 @@ export function App() {
               selectedStationId={selectedStationId}
               onStationSelect={setSelectedStationId}
               userPosition={position ? { lat: position.latitude, lng: position.longitude } : null}
+              userProjection={userProjection}
               availabilityMap={availabilityMap}
               amenityMap={amenityMap}
               tripDestination={destination}

@@ -2,6 +2,7 @@ import { Map, Marker, InfoWindow, useMap, useMapsLibrary } from '@vis.gl/react-g
 import { useState, useEffect } from 'react';
 import type { Route } from '../../types/route';
 import type { StationOnRoute, StationAvailability, ConnectorAvailability, Amenity } from '../../types/station';
+import type { RouteProjection } from '../../utils/routeProjection';
 import { getMarkerIcon, getListLogoSvg } from '../../utils/operatorIcon';
 import { getBrandConfig } from '../../utils/amenityIcon';
 import { DistancePills } from '../DistancePills/DistancePills';
@@ -110,13 +111,14 @@ interface Props {
   selectedStationId: string | null;
   onStationSelect: (id: string) => void;
   userPosition: { lat: number; lng: number } | null;
+  userProjection?: RouteProjection | null;
   availabilityMap?: Map<string, StationAvailability>;
   amenityMap?: Map<string, Amenity[]>;
   tripDestination?: string;
   activeView: 'list' | 'map';
 }
 
-export function MapView({ route, stations, selectedStationId, onStationSelect, userPosition, availabilityMap, amenityMap, tripDestination, activeView }: Props) {
+export function MapView({ route, stations, selectedStationId, onStationSelect, userPosition, userProjection, availabilityMap, amenityMap, tripDestination, activeView }: Props) {
   const [infoWindowStationId, setInfoWindowStationId] = useState<string | null>(null);
 
   const center = route
@@ -168,6 +170,9 @@ export function MapView({ route, stations, selectedStationId, onStationSelect, u
             const { station, detourMeters, distanceAlongRouteMeters } = found;
             const prevDistance = stationIndex > 0 ? stations[stationIndex - 1].distanceAlongRouteMeters : 0;
             const gapMeters = distanceAlongRouteMeters - prevDistance;
+            const remainingMeters = userProjection != null
+              ? distanceAlongRouteMeters - userProjection.distanceAlongRouteMeters
+              : null;
             const availability = availabilityMap?.get(station.id);
             const amenities = amenityMap?.get(station.id) ?? [];
 
@@ -228,6 +233,7 @@ export function MapView({ route, stations, selectedStationId, onStationSelect, u
                     distanceAlongRouteMeters={distanceAlongRouteMeters}
                     detourMeters={detourMeters}
                     gapMeters={gapMeters}
+                    remainingMeters={remainingMeters}
                   />
 
                   {/* Live availability */}

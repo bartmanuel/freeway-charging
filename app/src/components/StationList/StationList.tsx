@@ -230,6 +230,7 @@ export function StationList({ stations, selectedId, onSelect, availabilityMap, p
               distanceAlongRouteMeters={distanceAlongRouteMeters}
               detourMeters={detourMeters}
               gapMeters={gapMeters}
+              remainingMeters={remainingM}
             />
             {(availability?.history?.length ?? 0) > 0 && (
               <div className={styles.sparkRow}>

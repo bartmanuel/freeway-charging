@@ -55,14 +55,17 @@ function barColor(ratio: number): string {
 function SparkChart({ history }: { history: HistoryPoint[] }) {
   if (!history.length) return null;
 
-  // Use the real client clock so bars shift at a 1-min cadence that matches
-  // actual time, not poll timing. Using history[0].ts (the last poll timestamp)
-  // caused nowMinute to jump forward by however many minutes a slow or delayed
-  // poll took, instantly pushing old bars outside the 20-min window and making
-  // them disappear from all charts simultaneously.
-  // Math.floor(Date.now() / 60_000) only changes once per minute, so
-  // per-second re-renders from the countdown timer have no visible effect.
-  const nowMinute = Math.floor(Date.now() / 60_000);
+  // Use the newest history point's own timestamp as the reference "now".
+  // history[0] is always the client-injected currentPoint (ts = poll time),
+  // so this freezes nowMinute at the poll time and prevents bars from
+  // shifting left between polls at minute boundaries. The countdown timer
+  // re-renders every second but Math.floor(ts / 60_000) doesn't change
+  // until the next poll fires with a new currentPoint.
+  //
+  // Using Date.now() here was tried previously but is wrong: when it crosses
+  // a minute boundary between polls, slot 19 empties and the rightmost bar
+  // appears to vanish until the next poll refills it.
+  const nowMinute = Math.floor(new Date(history[0].ts).getTime() / 60_000);
   const slots: (number | null)[] = new Array(N_BARS).fill(null);
   for (const pt of history) {
     const ptMinute = Math.floor(new Date(pt.ts).getTime() / 60_000);

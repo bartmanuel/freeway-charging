@@ -143,17 +143,24 @@ export function useAvailability(
     if (!stationIds) return;
 
     setAvailabilityMap(new Map());
-    fetchAll(true).then(startCountdown);
+    fetchAll(true).catch(() => {}).then(startCountdown);
 
     function scheduleNext() {
-      timerRef.current = setTimeout(async () => {
+      timerRef.current = setTimeout(() => {
         if (document.visibilityState === 'hidden') {
+          // Don't poll while hidden, but keep the cadence alive so the next
+          // tick fires on schedule rather than waiting for a visibility event.
           stopCountdown();
+          scheduleNext();
           return;
         }
-        await fetchAll(false);
-        startCountdown();
-        scheduleNext();
+        // Use .finally() so a network error never kills the polling chain.
+        fetchAll(false)
+          .catch(() => {})
+          .finally(() => {
+            startCountdown();
+            scheduleNext();
+          });
       }, POLL_INTERVAL_MS);
     }
 
@@ -161,11 +168,14 @@ export function useAvailability(
 
     function onVisible() {
       if (document.visibilityState !== 'visible') return;
+      // Cancel any pending tick and poll immediately, then restart the cadence.
       if (timerRef.current) clearTimeout(timerRef.current);
-      fetchAll(false).then(() => {
-        startCountdown();
-        scheduleNext();
-      });
+      fetchAll(false)
+        .catch(() => {})
+        .finally(() => {
+          startCountdown();
+          scheduleNext();
+        });
     }
 
     function onHidden() {

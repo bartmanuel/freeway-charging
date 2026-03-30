@@ -10,8 +10,8 @@ interface Props {
 
 function formatRemaining(meters: number): string {
   if (meters < -500) return 'Passed';
-  if (meters < 1000) return `${Math.round(Math.max(meters, 0))} m ahead`;
-  return `${Math.round(meters / 1000)} km ahead`;
+  if (meters < 1000) return `${Math.round(Math.max(meters, 0))} m`;
+  return `${Math.round(meters / 1000)} km`;
 }
 
 export function DistancePills({ distanceAlongRouteMeters, detourMeters, gapMeters, remainingMeters }: Props) {

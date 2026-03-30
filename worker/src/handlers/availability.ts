@@ -1,7 +1,7 @@
 import { Env } from '../types';
 import { redisGet, redisSet } from '../redis';
 import { fetchStationAvailability, StationInput, ConnectorAvailability } from '../tomtom';
-import { insertAvailabilityReading, getRecentHistory, ensureStationsExist, HistoryPoint } from '../supabase';
+import { insertAvailabilityReadingsBatch, getRecentHistory, ensureStationsExist, HistoryPoint } from '../supabase';
 
 // Matches TomTom's own refresh cadence — no benefit polling more frequently
 const AVAILABILITY_TTL = 180; // 3 minutes
@@ -25,39 +25,26 @@ export interface StationAvailabilityResult {
   fetchedAt: string;
 }
 
-type StationResult = { id: string; connectors: ConnectorAvailability[] | null; fromCache: boolean };
+type StationResult = { id: string; connectors: ConnectorAvailability[] | null };
 
 async function fetchOne(env: Env, station: StationInput): Promise<StationResult> {
   const cacheKey = `availability:${station.id}`;
-  const ctx = (globalThis as unknown as { ctx: ExecutionContext }).ctx;
 
   const cached = await redisGet(env, cacheKey);
   if (cached) {
-    const connectors = JSON.parse(cached) as ConnectorAvailability[];
-    // Save the cached reading to Supabase on every poll so history accumulates
-    // at the poll interval (60s) rather than only when the 3-min Redis cache expires.
-    if (connectors.length > 0) {
-      const ccs2 = connectors[0];
-      ctx.waitUntil(insertAvailabilityReading(env, station.id, ccs2.available, ccs2.total).catch(() => {}));
-    }
-    return { id: station.id, connectors, fromCache: true };
+    return { id: station.id, connectors: JSON.parse(cached) as ConnectorAvailability[] };
   }
 
   const connectors = await fetchStationAvailability(env, station);
 
   if (connectors && connectors.length > 0) {
-    // ctx.waitUntil ensures the Redis + Supabase writes complete even after the response
-    // is sent — without this the Worker runtime kills dangling promises immediately.
-    const ccs2 = connectors[0]; // We only track CCS2 (filtered in tomtom.ts)
-    ctx.waitUntil(
-      Promise.all([
-        redisSet(env, cacheKey, JSON.stringify(connectors), AVAILABILITY_TTL).catch(() => {}),
-        insertAvailabilityReading(env, station.id, ccs2.available, ccs2.total).catch(() => {}),
-      ]),
-    );
+    // Background Redis write only — DB insert is done synchronously in the handler
+    // so that getRecentHistory sees the current reading in the same response.
+    const ctx = (globalThis as unknown as { ctx: ExecutionContext }).ctx;
+    ctx.waitUntil(redisSet(env, cacheKey, JSON.stringify(connectors), AVAILABILITY_TTL).catch(() => {}));
   }
 
-  return { id: station.id, connectors: connectors ?? null, fromCache: false };
+  return { id: station.id, connectors: connectors ?? null };
 }
 
 export async function handleAvailability(req: Request, env: Env): Promise<Response> {
@@ -92,19 +79,27 @@ export async function handleAvailability(req: Request, env: Env): Promise<Respon
     allResults.push(...chunkResults);
   }
 
-  // Collect fulfilled results and station IDs that need history
+  // Collect fulfilled results
   const fulfilled: StationResult[] = [];
   for (const result of allResults) {
     if (result.status === 'fulfilled') fulfilled.push(result.value);
   }
 
+  // Insert current readings synchronously so that getRecentHistory (below)
+  // sees them in the same response. Previously this was done via ctx.waitUntil
+  // (after the response), which meant readings were always 1 poll behind.
+  const readings = fulfilled
+    .filter(r => r.connectors && r.connectors.length > 0)
+    .map(r => ({ stationId: r.id, avail: r.connectors![0].available, total: r.connectors![0].total }));
+  await insertAvailabilityReadingsBatch(env, readings).catch(() => {});
+
   const stationIds = fulfilled.map(r => r.id);
   const historyMap = await getRecentHistory(env, stationIds, 25).catch(() => new Map<string, HistoryPoint[]>());
 
   // Build response map: { [ocmId]: { connectors, history, fetchedAt } }
-  // fetchedAt is the Worker server's current timestamp — same UTC source as
-  // Supabase. The client uses this to render an immediate "current bar" without
-  // mixing in the browser's clock (which may lag or skew vs. server time).
+  // fetchedAt is the Worker server's timestamp — same UTC source as Supabase.
+  // The client uses it to render an immediate current bar even when DB history
+  // is empty (e.g. insert failed or very first station lookup).
   const now = new Date().toISOString();
   const output: Record<string, StationAvailabilityResult> = {};
   for (const result of fulfilled) {

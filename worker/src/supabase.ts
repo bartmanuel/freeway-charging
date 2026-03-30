@@ -45,24 +45,28 @@ export interface HistoryPoint {
 }
 
 /**
- * Insert a single CCS2 availability reading for a station.
+ * Batch-insert CCS2 availability readings for multiple stations in one request.
  * Silently swallows FK violations (station not yet in stations table on first poll).
  */
-export async function insertAvailabilityReading(
+export async function insertAvailabilityReadingsBatch(
   env: Env,
-  stationId: string,
-  avail: number,
-  total: number,
+  readings: { stationId: string; avail: number; total: number }[],
 ): Promise<void> {
+  if (!readings.length) return;
+  const body = readings.map(r => ({
+    station_id: r.stationId,
+    source: 'tomtom',
+    chargers: { avail: r.avail, total: r.total },
+  }));
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/station_availability`, {
     method: 'POST',
     headers: { ...headers(env), Prefer: 'return=minimal' },
-    body: JSON.stringify({ station_id: stationId, source: 'tomtom', chargers: { avail, total } }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const err = await res.text();
     // 23503 = FK violation (station not yet persisted) — safe to ignore
-    if (!err.includes('23503')) throw new Error(`Supabase availability insert failed (${res.status}): ${err}`);
+    if (!err.includes('23503')) throw new Error(`Supabase availability batch insert failed (${res.status}): ${err}`);
   }
 }
 

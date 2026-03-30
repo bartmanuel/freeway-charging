@@ -86,13 +86,13 @@ export function useAvailability(
     for (const [id, { connectors, history }] of Object.entries(data)) {
       if (connectors?.length) {
         const existingHistory = prev.get(id)?.history ?? [];
-        const ccs2 = connectors[0];
-        // Prepend a client-side "current" point so the chart always has ≥1 bar
-        // immediately on the first poll. This is the only clock mixing we do:
-        // DB readings all use Supabase timestamps (consistent relative to each
-        // other); the current point uses client time for slot-19 stability.
-        const currentPoint: HistoryPoint = { ts: now, avail: ccs2.available, total: ccs2.total };
-        const newHistory = [currentPoint, ...(history ?? [])];
+        // Use only DB readings — no synthetic client-side "currentPoint".
+        // Mixing client clock with Supabase sampled_at timestamps caused
+        // recurring slot-19 collisions (same-minute bucket conflicts) that
+        // suppressed DB readings and made the chart appear stuck.
+        // The chart starts empty on the first poll and grows by 1 bar per
+        // minute as Supabase accumulates readings.
+        const newHistory = history ?? [];
         // Keep the richer history so a transient Supabase error can't wipe the chart.
         next.set(id, {
           fetchedAt: now,

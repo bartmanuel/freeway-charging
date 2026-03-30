@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { useMapsLibrary, Map, Marker, useMap } from '@vis.gl/react-google-maps';
 import type { PermissionState } from '../../hooks/useGeolocation';
 import styles from './DestinationSearch.module.css';
@@ -73,11 +74,18 @@ export function DestinationSearch({ onConfirm, position, permissionState }: Prop
 
     if (import.meta.env.DEV) {
       (window as unknown as Record<string, unknown>).__triggerPlaceSelect = selectPlace;
+      (window as unknown as Record<string, unknown>).__clearPlace = () => {
+        flushSync(() => {
+          setSelectedPlace(null);
+          setValue('');
+        });
+      };
     }
     return () => {
       listener?.remove();
       if (import.meta.env.DEV) {
         delete (window as unknown as Record<string, unknown>).__triggerPlaceSelect;
+        delete (window as unknown as Record<string, unknown>).__clearPlace;
       }
     };
   }, [placesLib]);

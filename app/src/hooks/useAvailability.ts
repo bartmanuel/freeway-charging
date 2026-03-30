@@ -67,7 +67,7 @@ export function useAvailability(
 
   async function postAvailability(
     body: StationPayload[],
-  ): Promise<Record<string, { connectors: ConnectorAvailability[] | null; history: HistoryPoint[] }>> {
+  ): Promise<Record<string, { connectors: ConnectorAvailability[] | null; history: HistoryPoint[]; fetchedAt: string }>> {
     const res = await fetch(`${WORKER_URL}/api/stations/availability`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -79,23 +79,23 @@ export function useAvailability(
 
   function mergeResults(
     prev: Map<string, StationAvailability>,
-    data: Record<string, { connectors: ConnectorAvailability[] | null; history: HistoryPoint[] }>,
+    data: Record<string, { connectors: ConnectorAvailability[] | null; history: HistoryPoint[]; fetchedAt: string }>,
   ): Map<string, StationAvailability> {
     const next = new Map<string, StationAvailability>(prev);
-    const now = new Date().toISOString();
-    for (const [id, { connectors, history }] of Object.entries(data)) {
+    for (const [id, { connectors, history, fetchedAt }] of Object.entries(data)) {
       if (connectors?.length) {
         const existingHistory = prev.get(id)?.history ?? [];
-        // Use only DB readings — no synthetic client-side "currentPoint".
-        // Mixing client clock with Supabase sampled_at timestamps caused
-        // recurring slot-19 collisions (same-minute bucket conflicts) that
-        // suppressed DB readings and made the chart appear stuck.
-        // The chart starts empty on the first poll and grows by 1 bar per
-        // minute as Supabase accumulates readings.
-        const newHistory = history ?? [];
+        // Prepend a "current bar" using the Worker server's fetchedAt timestamp
+        // (same UTC clock source as Supabase sampled_at — not the browser clock).
+        // This gives an immediate rightmost bar on the first poll while keeping
+        // all subsequent bars aligned on a single clock source, preventing the
+        // negative-minsAgo filtering that occurred when mixing client and server times.
+        const ccs2 = connectors[0];
+        const currentBar: HistoryPoint = { ts: fetchedAt, avail: ccs2.available, total: ccs2.total };
+        const newHistory = [currentBar, ...(history ?? [])];
         // Keep the richer history so a transient Supabase error can't wipe the chart.
         next.set(id, {
-          fetchedAt: now,
+          fetchedAt,
           connectors,
           history: newHistory.length >= existingHistory.length ? newHistory : existingHistory,
         });

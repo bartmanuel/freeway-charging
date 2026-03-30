@@ -56,15 +56,18 @@ function SparkChart({ history }: { history: HistoryPoint[] }) {
   if (!history.length) return null;
 
   // Use the newest history point's own timestamp as the reference "now".
-  // history[0] is always the client-injected currentPoint (ts = poll time),
-  // so this freezes nowMinute at the poll time and prevents bars from
+  // history[0] is always the server-injected currentBar (ts = Worker fetchedAt),
+  // so this freezes nowMinute at the server poll time and prevents bars from
   // shifting left between polls at minute boundaries. The countdown timer
   // re-renders every second but Math.floor(ts / 60_000) doesn't change
-  // until the next poll fires with a new currentPoint.
+  // until the next poll fires with a new currentBar.
   //
   // Using Date.now() here was tried previously but is wrong: when it crosses
   // a minute boundary between polls, slot 19 empties and the rightmost bar
   // appears to vanish until the next poll refills it.
+  // Using the client clock for the currentBar timestamp was also wrong: client
+  // clocks can lag server time, making DB readings appear "in the future"
+  // (negative minsAgo) and get filtered out.
   const nowMinute = Math.floor(new Date(history[0].ts).getTime() / 60_000);
   const slots: (number | null)[] = new Array(N_BARS).fill(null);
   for (const pt of history) {

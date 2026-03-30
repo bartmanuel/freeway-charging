@@ -22,6 +22,7 @@ const MAX_STATIONS = 20;
 export interface StationAvailabilityResult {
   connectors: ConnectorAvailability[] | null;
   history: HistoryPoint[];
+  fetchedAt: string;
 }
 
 type StationResult = { id: string; connectors: ConnectorAvailability[] | null; fromCache: boolean };
@@ -100,15 +101,15 @@ export async function handleAvailability(req: Request, env: Env): Promise<Respon
   const stationIds = fulfilled.map(r => r.id);
   const historyMap = await getRecentHistory(env, stationIds, 25).catch(() => new Map<string, HistoryPoint[]>());
 
-  // Build response map: { [ocmId]: { connectors, history } }
-  // Use only DB-stored readings — no synthetic "currentPoint" injection.
-  // Mixing Worker clock (currentPoint.ts) with Supabase clock (sampled_at)
-  // caused clock-drift mismatches that made bars appear to be in the future
-  // and get filtered out. All history entries now share one clock source.
+  // Build response map: { [ocmId]: { connectors, history, fetchedAt } }
+  // fetchedAt is the Worker server's current timestamp — same UTC source as
+  // Supabase. The client uses this to render an immediate "current bar" without
+  // mixing in the browser's clock (which may lag or skew vs. server time).
+  const now = new Date().toISOString();
   const output: Record<string, StationAvailabilityResult> = {};
   for (const result of fulfilled) {
     const history = historyMap.get(result.id) ?? [];
-    output[result.id] = { connectors: result.connectors, history };
+    output[result.id] = { connectors: result.connectors, history, fetchedAt: now };
   }
 
   return new Response(JSON.stringify(output), {

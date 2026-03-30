@@ -3,7 +3,7 @@ import type { StationOnRoute, StationAvailability, HistoryPoint, ConnectorAvaila
 
 import { WORKER_URL } from '../config';
 
-const POLL_INTERVAL_MS = 60_000; // 60s — matches TomTom's 3-min cache with headroom
+const POLL_INTERVAL_MS = 30_000; // 30s — more resilient against missed polls; chart shows 1 bar/min
 const POLL_INTERVAL_S = POLL_INTERVAL_MS / 1000;
 
 export interface AvailabilityState {
@@ -85,14 +85,12 @@ export function useAvailability(
     for (const [id, { connectors, history, fetchedAt }] of Object.entries(data)) {
       if (connectors?.length) {
         const existingHistory = prev.get(id)?.history ?? [];
-        // Prepend a "current bar" using the Worker server's fetchedAt timestamp
-        // (same UTC clock source as Supabase sampled_at — not the browser clock).
-        // This gives an immediate rightmost bar on the first poll while keeping
-        // all subsequent bars aligned on a single clock source, preventing the
-        // negative-minsAgo filtering that occurred when mixing client and server times.
-        const ccs2 = connectors[0];
-        const currentBar: HistoryPoint = { ts: fetchedAt, avail: ccs2.available, total: ccs2.total };
-        const newHistory = [currentBar, ...(history ?? [])];
+        // Use DB readings directly — the Worker inserts synchronously before
+        // calling getRecentHistory, so history[0] already reflects the current poll.
+        // A separate "currentBar" using fetchedAt caused alternating filled/empty bars
+        // when fetchedAt straddled a calendar-minute boundary vs sampled_at, creating
+        // 2 effective minute slots for one poll and 0 for the next.
+        const newHistory = history ?? [];
         // Keep the richer history so a transient Supabase error can't wipe the chart.
         next.set(id, {
           fetchedAt,

@@ -1,0 +1,28 @@
+name: Build Android package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build Android package via PWABuilder
+        uses: pwa-builder/pwabuilder-android-wrapper@v3
+        with:
+          packageId: app.letsjustdrive
+          host: https://letsjustdrive.app
+          name: LetsJustDrive
+          launcherName: LetsJustDrive
+          themeColor: '#005194'
+          backgroundColor: '#ffffff'
+          startUrl: /
+          iconUrl: https://letsjustdrive.app/icons/icon-512.png
+          maskableIconUrl: https://letsjustdrive.app/icons/icon-maskable-512.png
+
+      - name: Upload Android package
+        uses: actions/upload-artifact@v4
+        with:
+          name: LetsJustDrive-Android
+          path: '*.zip'
+          retention-days: 30

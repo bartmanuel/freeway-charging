@@ -7,22 +7,44 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Build Android package via PWABuilder
-        uses: pwa-builder/pwabuilder-android-wrapper@v3
-        with:
-          packageId: app.letsjustdrive
-          host: https://letsjustdrive.app
-          name: LetsJustDrive
-          launcherName: LetsJustDrive
-          themeColor: '#005194'
-          backgroundColor: '#ffffff'
-          startUrl: /
-          iconUrl: https://letsjustdrive.app/icons/icon-512.png
-          maskableIconUrl: https://letsjustdrive.app/icons/icon-maskable-512.png
+      - uses: actions/checkout@v4
 
-      - name: Upload Android package
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      - name: Configure Bubblewrap JDK + SDK paths
+        run: |
+          mkdir -p ~/.bubblewrap
+          echo '{
+            "jdkPath": "${{ steps.setup-java.outputs.path }}",
+            "androidSdkPath": "/usr/local/lib/android/sdk/"
+          }' > ~/.bubblewrap/config.json
+
+      - name: Restore keystore from secret
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android.keystore
+
+      - name: Build APK + AAB
+        run: bubblewrap build --skipPwaValidation
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: LetsJustDrive-Android
-          path: '*.zip'
+          path: |
+            app-release-bundle.aab
+            app-release-signed.apk
           retention-days: 30

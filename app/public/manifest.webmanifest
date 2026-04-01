@@ -34,5 +34,49 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "screenshots": [
+    {
+      "src": "/icons/screenshots/Screenshot_20260401-111228.png",
+      "sizes": "960x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/icons/screenshots/Screenshot_20260401-111245.png",
+      "sizes": "960x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/icons/screenshots/Screenshot_20260401-112938.png",
+      "sizes": "960x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/icons/screenshots/Screenshot_20260401-114050.png",
+      "sizes": "960x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/icons/screenshots/Screenshot_20260401-114110.png",
+      "sizes": "960x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/icons/screenshots/Screenshot_20260401-114122.png",
+      "sizes": "960x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/icons/screenshots/Screenshot_20260401-114200.png",
+      "sizes": "960x1920",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
   ]
 }

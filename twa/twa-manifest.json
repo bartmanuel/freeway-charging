@@ -1,5 +1,5 @@
 {
-  "packageId": "app.letsjustdrive",
+  "packageId": "app.letsjustdrive.twa",
   "host": "letsjustdrive.app",
   "name": "LetsJustDrive",
   "launcherName": "LetsJustDrive",
@@ -26,7 +26,7 @@
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "appVersion": "1.0.0",
-  "appVersionCode": 1,
+  "appVersionCode": 2,
   "signingKey": {
     "path": "letsjustdrive.keystore",
     "alias": "my-key-alias"

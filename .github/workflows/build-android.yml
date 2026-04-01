@@ -41,18 +41,19 @@ jobs:
 
       # Build APK + AAB directly via Gradle (bypasses all bubblewrap interactive prompts).
       # Version info is already baked into build.gradle by generate-android-project.mjs.
-      # Signing credentials are passed as Gradle properties.
+      # Signing credentials are passed as Gradle properties with an absolute keystore path.
       - name: Build APK + AAB
         working-directory: twa
         run: |
           chmod +x gradlew
+          KEYSTORE_ABS="${GITHUB_WORKSPACE}/twa/app/letsjustdrive.keystore"
           ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=letsjustdrive.keystore \
+            -Pandroid.injected.signing.store.file="${KEYSTORE_ABS}" \
             -Pandroid.injected.signing.store.password="${KEYSTORE_PASSWORD}" \
             -Pandroid.injected.signing.key.alias=letsjustdrive \
             -Pandroid.injected.signing.key.password="${KEY_PASSWORD}"
           ./gradlew bundleRelease \
-            -Pandroid.injected.signing.store.file=letsjustdrive.keystore \
+            -Pandroid.injected.signing.store.file="${KEYSTORE_ABS}" \
             -Pandroid.injected.signing.store.password="${KEYSTORE_PASSWORD}" \
             -Pandroid.injected.signing.key.alias=letsjustdrive \
             -Pandroid.injected.signing.key.password="${KEY_PASSWORD}"

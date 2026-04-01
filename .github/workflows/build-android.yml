@@ -39,10 +39,14 @@ jobs:
       - name: Restore keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > twa/letsjustdrive.keystore
 
-      # echo y answers any unexpected remaining prompt; env vars supply keystore passwords
+      # Pipe answers to all bubblewrap build prompts:
+      #   1. "regenerate project?" (no checksum file present) → y
+      #   2. "versionName" → 1.0.0
+      #   3. "versionCode" → 1
+      # Keystore passwords are supplied via env vars (no prompt needed).
       - name: Build APK + AAB
         working-directory: twa
-        run: echo y | bubblewrap build --skipPwaValidation
+        run: printf 'y\n1.0.0\n1\n' | bubblewrap build --skipPwaValidation
         env:
           BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}

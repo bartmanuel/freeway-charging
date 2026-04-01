@@ -85,12 +85,17 @@ export function useAvailability(
     for (const [id, { connectors, history, fetchedAt }] of Object.entries(data)) {
       if (connectors?.length) {
         const existingHistory = prev.get(id)?.history ?? [];
-        // Use DB readings directly — the Worker inserts synchronously before
-        // calling getRecentHistory, so history[0] already reflects the current poll.
-        // A separate "currentBar" using fetchedAt caused alternating filled/empty bars
-        // when fetchedAt straddled a calendar-minute boundary vs sampled_at, creating
-        // 2 effective minute slots for one poll and 0 for the next.
-        const newHistory = history ?? [];
+        const ccs2 = connectors[0];
+        // Prepend a currentBar using fetchedAt as its timestamp.
+        // fetchedAt is captured BEFORE the DB insert on the server, so it
+        // falls in the same calendar minute as the DB row's sampled_at —
+        // no straddle, no alternating-bar issue.
+        // This also guarantees the chart shows on first-ever load, even when
+        // getRecentHistory returns empty (e.g. FK insert silently failed).
+        // The slots[idx] === null guard in SparkChart prevents duplicates when
+        // both currentBar and history[0] map to the same minute bucket.
+        const currentBar: HistoryPoint = { ts: fetchedAt, avail: ccs2.available, total: ccs2.total };
+        const newHistory = [currentBar, ...(history ?? [])];
         // Keep the richer history so a transient Supabase error can't wipe the chart.
         next.set(id, {
           fetchedAt,

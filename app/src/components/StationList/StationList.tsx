@@ -55,17 +55,15 @@ function barColor(ratio: number): string {
 function SparkChart({ history }: { history: HistoryPoint[] }) {
   if (!history.length) return null;
 
-  // Use the newest DB reading's own timestamp as the reference "now".
-  // history[0] is the latest sampled_at from Supabase (Worker inserts synchronously
-  // before calling getRecentHistory, so this is always the current poll's reading).
-  // This freezes nowMinute at the server DB timestamp, preventing bars from
-  // shifting left between polls at minute boundaries.
+  // Use history[0].ts as the reference "now" minute.
+  // history[0] is the client-side currentBar (ts = fetchedAt from the server).
+  // fetchedAt is captured BEFORE the DB insert, so it equals sampled_at's minute —
+  // no straddle, no alternating-bar issue.
+  // This freezes nowMinute at the server poll time, preventing bars from shifting
+  // left at calendar-minute boundaries between polls.
   //
-  // Using Date.now() here is wrong: when it crosses a minute boundary between polls,
+  // Using Date.now() here was wrong: when it crosses a minute boundary between polls,
   // slot 19 empties and the rightmost bar vanishes until the next poll refills it.
-  // A separate client-side "currentBar" using fetchedAt was also wrong: fetchedAt
-  // is computed after the Supabase insert roundtrip (~200-400ms), so it can straddle
-  // a calendar-minute boundary from sampled_at, causing alternating filled/empty bars.
   const nowMinute = Math.floor(new Date(history[0].ts).getTime() / 60_000);
   const slots: (number | null)[] = new Array(N_BARS).fill(null);
   for (const pt of history) {

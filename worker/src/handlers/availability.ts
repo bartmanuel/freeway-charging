@@ -85,6 +85,12 @@ export async function handleAvailability(req: Request, env: Env): Promise<Respon
     if (result.status === 'fulfilled') fulfilled.push(result.value);
   }
 
+  // Capture timestamp BEFORE the insert so that fetchedAt ≈ sampled_at
+  // (Postgres sets sampled_at = now() at insert time). Computing now after
+  // the insert roundtrip (~200-400 ms) could place fetchedAt in a different
+  // calendar minute than sampled_at, breaking the client's minute-bucket chart.
+  const now = new Date().toISOString();
+
   // Insert current readings synchronously so that getRecentHistory (below)
   // sees them in the same response. Previously this was done via ctx.waitUntil
   // (after the response), which meant readings were always 1 poll behind.
@@ -95,12 +101,6 @@ export async function handleAvailability(req: Request, env: Env): Promise<Respon
 
   const stationIds = fulfilled.map(r => r.id);
   const historyMap = await getRecentHistory(env, stationIds, 25).catch(() => new Map<string, HistoryPoint[]>());
-
-  // Build response map: { [ocmId]: { connectors, history, fetchedAt } }
-  // fetchedAt is the Worker server's timestamp — same UTC source as Supabase.
-  // The client uses it to render an immediate current bar even when DB history
-  // is empty (e.g. insert failed or very first station lookup).
-  const now = new Date().toISOString();
   const output: Record<string, StationAvailabilityResult> = {};
   for (const result of fulfilled) {
     const history = historyMap.get(result.id) ?? [];

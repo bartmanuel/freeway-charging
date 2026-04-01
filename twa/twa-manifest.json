@@ -20,7 +20,7 @@
   "isChromeOSOnly": false,
   "isMetaQuest": false,
   "fullScopeUrl": "https://letsjustdrive.app/",
-  "minSdkVersion": 19,
+  "minSdkVersion": 21,
   "orientation": "default",
   "fingerprints": [],
   "additionalTrustedOrigins": [],

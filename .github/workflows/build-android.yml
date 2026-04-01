@@ -50,12 +50,12 @@ jobs:
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file="${KEYSTORE_ABS}" \
             -Pandroid.injected.signing.store.password="${KEYSTORE_PASSWORD}" \
-            -Pandroid.injected.signing.key.alias=letsjustdrive \
+            -Pandroid.injected.signing.key.alias=my-key-alias \
             -Pandroid.injected.signing.key.password="${KEY_PASSWORD}"
           ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file="${KEYSTORE_ABS}" \
             -Pandroid.injected.signing.store.password="${KEYSTORE_PASSWORD}" \
-            -Pandroid.injected.signing.key.alias=letsjustdrive \
+            -Pandroid.injected.signing.key.alias=my-key-alias \
             -Pandroid.injected.signing.key.password="${KEY_PASSWORD}"
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}

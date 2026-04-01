@@ -29,7 +29,7 @@
   "appVersionCode": 1,
   "signingKey": {
     "path": "letsjustdrive.keystore",
-    "alias": "letsjustdrive"
+    "alias": "my-key-alias"
   },
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://letsjustdrive.app/manifest.webmanifest",

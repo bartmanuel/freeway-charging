@@ -35,9 +35,9 @@ jobs:
       - name: Generate TWA project
         run: node scripts/generate-android-project.mjs
 
-      # Decode keystore from secret into the project directory
+      # Decode keystore into twa/app/ — build.gradle resolves the path relative to the app module directory
       - name: Restore keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > twa/letsjustdrive.keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > twa/app/letsjustdrive.keystore
 
       # Build APK + AAB directly via Gradle (bypasses all bubblewrap interactive prompts).
       # Version info is already baked into build.gradle by generate-android-project.mjs.

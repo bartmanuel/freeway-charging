@@ -113,6 +113,11 @@ export function DestinationSearch({ onConfirm, position, permissionState }: Prop
 
   return (
     <div className={styles.screen}>
+      <img
+        src="/icons/location_marker_ccs2_inverted.svg"
+        alt="LetsJustDrive"
+        className={styles.appIcon}
+      />
       <div className={styles.card}>
         <div className={styles.brand}>
           <h1 className={styles.title}>let's just drive</h1>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { LocationOnboarding } from './components/LocationOnboarding/LocationOnboarding';
 import { DestinationSearch } from './components/DestinationSearch/DestinationSearch';
+import { ResumeTripScreen } from './components/ResumeTripScreen/ResumeTripScreen';
 import { StationList } from './components/StationList/StationList';
 import { MapView } from './components/MapView/MapView';
 import { useRoute } from './hooks/useRoute';
@@ -13,6 +14,32 @@ import { projectOntoRoute, type RouteProjection } from './utils/routeProjection'
 import styles from './App.module.css';
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string;
+
+// ── Trip persistence ───────────────────────────────────────────────────────────
+const SAVED_TRIP_KEY = 'ljd_active_trip';
+const SAVED_TRIP_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
+
+interface SavedTrip {
+  destination: string;
+  origin: string;
+  destName: string;
+  savedAt: number;
+}
+
+function loadSavedTrip(): SavedTrip | null {
+  try {
+    const raw = localStorage.getItem(SAVED_TRIP_KEY);
+    if (!raw) return null;
+    const data: SavedTrip = JSON.parse(raw);
+    if (Date.now() - data.savedAt > SAVED_TRIP_MAX_AGE_MS) {
+      localStorage.removeItem(SAVED_TRIP_KEY);
+      return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
 
 // How far off the polyline (metres) before we consider the user off-route
 const OFF_ROUTE_THRESHOLD_M = 500;
@@ -28,10 +55,12 @@ function formatDuration(seconds: number): string {
   return `${h}:${m.toString().padStart(2, '0')}`;
 }
 
-type Screen = 'onboarding' | 'start' | 'trip';
+type Screen = 'onboarding' | 'start' | 'resume' | 'trip';
 
 export function App() {
-  const [screen, setScreen] = useState<Screen>('onboarding');
+  // Lazy initializers so the correct screen shows immediately with no flash.
+  const [resumeData] = useState<SavedTrip | null>(loadSavedTrip);
+  const [screen, setScreen] = useState<Screen>(() => resumeData ? 'resume' : 'onboarding');
   const [destinationPlace, setDestinationPlace] = useState<google.maps.places.PlaceResult | null>(null);
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
@@ -65,7 +94,10 @@ export function App() {
   const amenityMap = useAmenities(stationsQuery.data ?? []);
   // Start geolocation as soon as the user reaches the start screen so the blue
   // dot is already warm by the time they pick a destination.
-  const { position, permissionState } = useGeolocation(screen === 'start' || screen === 'trip');
+  // Start GPS on start/resume/trip so it's warm by the time the user acts.
+  const { position, permissionState } = useGeolocation(
+    screen === 'start' || screen === 'resume' || screen === 'trip'
+  );
 
   // Project user position onto route whenever GPS updates
   const decodedPath = routeQuery.data?.decodedPath;
@@ -146,10 +178,19 @@ export function App() {
   const handleConfirm = useCallback((place: google.maps.places.PlaceResult) => {
     if (!position) return;
     const { latitude, longitude } = position;
-    setOrigin(`${latitude.toFixed(6)},${longitude.toFixed(6)}`);
-    setDestination(place.formatted_address ?? place.name ?? '');
+    const orig = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+    const dest = place.formatted_address ?? place.name ?? '';
+    setOrigin(orig);
+    setDestination(dest);
     setDestinationPlace(place);
     setSelectedStationId(null);
+    // Persist so we can offer resume if the app is closed mid-trip.
+    localStorage.setItem(SAVED_TRIP_KEY, JSON.stringify({
+      destination: dest,
+      origin: orig,
+      destName: place.name ?? dest,
+      savedAt: Date.now(),
+    } satisfies SavedTrip));
     setScreen('trip');
   }, [position]);
 
@@ -164,6 +205,7 @@ export function App() {
   }, [position]);
 
   function handleStop() {
+    localStorage.removeItem(SAVED_TRIP_KEY);
     setScreen('start');
     setDestinationPlace(null);
     setOrigin('');
@@ -178,6 +220,25 @@ export function App() {
       offRouteTimerRef.current = null;
     }
   }
+
+  const handleResumeYes = useCallback(() => {
+    if (!resumeData) return;
+    // Prefer current GPS position as origin; fall back to the saved position.
+    const orig = position
+      ? `${position.latitude.toFixed(6)},${position.longitude.toFixed(6)}`
+      : resumeData.origin;
+    setOrigin(orig);
+    setDestination(resumeData.destination);
+    // Only .name is used in the trip header; no need for full PlaceResult geometry.
+    setDestinationPlace({ name: resumeData.destName } as google.maps.places.PlaceResult);
+    setSelectedStationId(null);
+    setScreen('trip');
+  }, [resumeData, position]);
+
+  const handleResumeNo = useCallback(() => {
+    localStorage.removeItem(SAVED_TRIP_KEY);
+    setScreen('start');
+  }, []);
 
   function handleStationSelect(id: string | null) {
     setSelectedStationId(id);
@@ -209,6 +270,14 @@ export function App() {
     <APIProvider apiKey={GOOGLE_API_KEY}>
       {screen === 'onboarding' && (
         <LocationOnboarding onGranted={handleOnboardingGranted} />
+      )}
+
+      {screen === 'resume' && resumeData && (
+        <ResumeTripScreen
+          destinationName={resumeData.destName}
+          onYes={handleResumeYes}
+          onNo={handleResumeNo}
+        />
       )}
 
       {screen === 'start' && (

@@ -345,7 +345,7 @@ export function App() {
                 <span>You've left the planned route.</span>
                 <div className={styles.offRouteBannerActions}>
                   <button className={styles.offRouteRecalc} onClick={handleReroute}>
-                    Recalculate
+                    Reroute
                   </button>
                   <button className={styles.offRouteDismiss} onClick={handleDismissOffRoute}>
                     Dismiss
@@ -397,6 +397,15 @@ export function App() {
               tripDestination={destination}
               activeView={activeView}
             />
+
+            {showOffRouteBanner && (
+              <button
+                className={styles.mapRerouteBtn}
+                onClick={(e) => { e.stopPropagation(); handleReroute(); }}
+              >
+                Reroute
+              </button>
+            )}
 
             {/* Thumbnail label — only visible on mobile when this view is inactive */}
             <div className={styles.thumbnailLabel}>Map</div>
